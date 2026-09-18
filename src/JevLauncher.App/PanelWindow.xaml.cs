@@ -276,6 +276,11 @@ public partial class PanelWindow : Window
         var report = new StringBuilder();
         report.AppendLine($"index ready: {_indexReady}");
 
+        var settingsProbe = new Settings();
+        settingsProbe.SetApiKey("smoke-key");
+        report.AppendLine("settings key roundtrip => " + (settingsProbe.GetApiKey() == "smoke-key" ? "ok" : "FAILED"));
+        report.AppendLine("settings hotkey parse => " + string.Join(",", HotKey.Parse("Alt+Space")));
+
         void Probe(string q)
         {
             RenderRows(_engine.Update(q));
