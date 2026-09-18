@@ -42,4 +42,33 @@ public class CommandsTests
         foreach (var command in Commands.All.Where(c => c.Scope == CommandScope.Web))
             Assert.Contains("{0}", command.UrlTemplate);
     }
+
+    [Theory]
+    [InlineData("x")]
+    [InlineData("reddit")]
+    [InlineData("spotify")]
+    [InlineData("netflix")]
+    [InlineData("snip")]
+    [InlineData("clip")]
+    [InlineData("uuid")]
+    [InlineData("b64")]
+    [InlineData("b64d")]
+    [InlineData("hash")]
+    [InlineData("color")]
+    [InlineData("win")]
+    [InlineData("note")]
+    [InlineData("timer")]
+    public void Resolves_new_commands(string name)
+    {
+        Assert.NotNull(CommandParser.Resolve(name));
+    }
+
+    [Fact]
+    public void Every_home_url_is_https()
+    {
+        var withHome = Commands.All.Where(c => c.HomeUrl is not null).ToList();
+        Assert.NotEmpty(withHome);
+        foreach (var command in withHome)
+            Assert.StartsWith("https://", command.HomeUrl);
+    }
 }

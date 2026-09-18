@@ -10,6 +10,10 @@ public enum CandidateKind
     RunShortcut,
     Command,
     OpenUrl,
+    Copy,
+    FocusWindow,
+    SaveNote,
+    Timer,
     Unclear,
 }
 
