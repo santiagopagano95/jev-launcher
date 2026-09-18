@@ -22,7 +22,7 @@ public static class Prefilter
         {
             var text = value.ToString("0.######", CultureInfo.InvariantCulture);
             list.Add(new Candidate("calc", CandidateKind.Calculate, $"= {text}",
-                "Press Enter to copy", "calculator calc math", text));
+                "Press Enter to copy", "calculator calc math", text, Fuzzy: 1000));
         }
 
         if (!string.IsNullOrWhiteSpace(query))

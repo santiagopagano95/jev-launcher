@@ -7,7 +7,7 @@ public interface IJevQuery
 
 public sealed class LauncherEngine
 {
-    private readonly IReadOnlyList<Candidate> _index;
+    private IReadOnlyList<Candidate> _index;
     private readonly IJevQuery _jev;
     private readonly Stats _stats;
     private readonly Func<LauncherContext> _context;
@@ -28,6 +28,8 @@ public sealed class LauncherEngine
 
     public Stats Stats => _stats;
     public bool LastWasStale { get; private set; }
+
+    public void SetIndex(IReadOnlyList<Candidate> index) => _index = index;
 
     public IReadOnlyList<ScoredCandidate> Update(string query)
     {
