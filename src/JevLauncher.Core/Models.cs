@@ -8,6 +8,8 @@ public enum CandidateKind
     Calculate,
     SystemToggle,
     RunShortcut,
+    Command,
+    OpenUrl,
     Unclear,
 }
 
