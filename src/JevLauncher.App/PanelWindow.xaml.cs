@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -19,7 +20,8 @@ public partial class PanelWindow : Window
     private readonly LauncherEngine _engine;
     private readonly IClipboardKindProvider _clipboard = new WindowsClipboardKindProvider();
     private readonly List<string> _recentApps = new();
-    private readonly List<RowView> _rows = new();
+    private readonly ObservableCollection<RowView> _rows = new();
+    private const int MaxRows = 7;
     private readonly DispatcherTimer _hideTimer;
     private readonly DispatcherTimer _debounce;
 
@@ -36,6 +38,7 @@ public partial class PanelWindow : Window
     public PanelWindow(Settings settings)
     {
         InitializeComponent();
+        Rows.ItemsSource = _rows;
 
         _settings = settings;
         _client = new JevClient(new HttpClient(), _settings.GetApiKey());
@@ -213,10 +216,24 @@ public partial class PanelWindow : Window
         else UpdateFooter();
     }
 
-    private static void SetClipboard(string text)
+    private static void SetClipboard(string text) => TrySetClipboard(text);
+
+    private static bool TrySetClipboard(string text)
     {
-        try { Clipboard.SetText(text); }
-        catch { /* clipboard can be locked by another process */ }
+        // The clipboard is a shared resource; another process can hold it briefly.
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                Clipboard.SetText(text);
+                return true;
+            }
+            catch
+            {
+                Thread.Sleep(30);
+            }
+        }
+        return false;
     }
 
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -232,9 +249,8 @@ public partial class PanelWindow : Window
     {
         _rows.Clear();
         _selected = 0;
-        for (var i = 0; i < scored.Count; i++)
+        for (var i = 0; i < scored.Count && i < MaxRows; i++)
             _rows.Add(new RowView(scored[i], i == 0));
-        Rows.ItemsSource = _rows;
         UpdateFooter();
     }
 
@@ -300,9 +316,11 @@ public partial class PanelWindow : Window
         Probe("wifi");
         Probe("15+2");
 
-        try { Clipboard.SetText("smoke-before"); } catch { }
+        SetClipboard("smoke-before");
         RenderRows(_engine.Update("15+2"));
         _selected = 0;
+        report.AppendLine("15+2 top => " +
+            (_rows.Count > 0 ? $"{_rows[0].Candidate.Kind} target={_rows[0].Candidate.Target}" : "none"));
         if (_rows.Count > 0 && _rows[0].Candidate.Kind == CandidateKind.Calculate)
         {
             ExecuteSelected();
@@ -315,6 +333,11 @@ public partial class PanelWindow : Window
         string after;
         try { after = Clipboard.GetText(); } catch (Exception ex) { after = "<" + ex.Message + ">"; }
         report.AppendLine("15+2 run => clipboard: " + after);
+
+        RenderRows(_engine.Update("dark"));
+        Rows.UpdateLayout();
+        var container = Rows.ItemContainerGenerator.ContainerFromIndex(0);
+        report.AppendLine($"list control => Items={Rows.Items.Count}, first container={(container is null ? "null" : "ok")}");
 
         return report.ToString();
     }
