@@ -37,6 +37,50 @@ public sealed class LauncherEngine
     private IReadOnlyList<ScoredCandidate> ResolveCommand(string query) =>
         Ranker.Rank(ResolveCommandCandidates(query), null);
 
+    private readonly Dictionary<string, IReadOnlyList<WebResult>> _webCache = new();
+
+    private async Task<IReadOnlyList<ScoredCandidate>> ResolveCommandAsync(string query)
+    {
+        var (name, argument) = CommandParser.Split(query);
+        var command = CommandParser.Resolve(name);
+
+        if (command?.Scope == CommandScope.WebResults &&
+            !string.IsNullOrWhiteSpace(argument) &&
+            _services.WebSearch is not null)
+        {
+            var seq = Interlocked.Increment(ref _sequence);
+            var results = await SearchCachedAsync(argument).ConfigureAwait(false);
+
+            if (seq < _applied)
+            {
+                LastWasStale = true;
+                return Ranker.Rank(ResolveCommandCandidates(query), null);
+            }
+
+            _applied = seq;
+            LastWasStale = false;
+
+            if (_lastQuery != query)
+                return Ranker.Rank(ResolveCommandCandidates(query), null);
+
+            var list = WebResultCandidates.Build(results).ToList();
+            list.Add(CommandCandidates.Web(command, argument));
+            return Ranker.Rank(list, null);
+        }
+
+        return ResolveCommand(query);
+    }
+
+    private async Task<IReadOnlyList<WebResult>> SearchCachedAsync(string query)
+    {
+        if (_webCache.TryGetValue(query, out var cached)) return cached;
+
+        var results = await _services.WebSearch!.SearchAsync(query).ConfigureAwait(false);
+        if (_webCache.Count >= 20) _webCache.Clear();
+        _webCache[query] = results;
+        return results;
+    }
+
     private IReadOnlyList<Candidate> ResolveCommandCandidates(string query)
     {
         var (name, argument) = CommandParser.Split(query);
@@ -53,6 +97,10 @@ public sealed class LauncherEngine
                 if (!string.IsNullOrWhiteSpace(command.HomeUrl))
                     return new List<Candidate> { CommandCandidates.Home(command) };
                 return new List<Candidate> { CommandCandidates.ToPaletteRow(command) };
+            case CommandScope.WebResults:
+                return string.IsNullOrWhiteSpace(argument)
+                    ? new List<Candidate> { CommandCandidates.ToPaletteRow(command) }
+                    : new List<Candidate> { CommandCandidates.Web(command, argument) };
             case CommandScope.Files:
                 return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenFile);
             case CommandScope.Apps:
@@ -143,7 +191,7 @@ public sealed class LauncherEngine
     {
         _lastQuery = query;
         if (string.IsNullOrWhiteSpace(query)) return Array.Empty<ScoredCandidate>();
-        if (CommandParser.IsCommand(query)) return ResolveCommand(query);
+        if (CommandParser.IsCommand(query)) return await ResolveCommandAsync(query).ConfigureAwait(false);
 
         var candidates = Prefilter.BuildCandidates(query, _index, 15);
         var local = Ranker.Rank(candidates, _last);
