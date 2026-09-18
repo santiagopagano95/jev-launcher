@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 
 namespace JevLauncher.Core;
 
@@ -16,7 +17,28 @@ public static class Prefilter
 
     public static IReadOnlyList<Candidate> BuildCandidates(string query, IEnumerable<Candidate> all, int cap)
     {
-        var list = TopMatches(query, all, Math.Max(0, cap - 2)).ToList();
+        var allList = all as IReadOnlyList<Candidate> ?? all.ToList();
+
+        var list = TopMatches(query, allList, Math.Max(0, cap - 2)).ToList();
+        var seen = list.Select(c => c.Id).ToHashSet();
+
+        // Reserve room for the calculator and the web fallback, then always offer
+        // the most recently modified local files. Natural-language queries such as
+        // "the pdf I just downloaded" would otherwise have no file for Jev to pick.
+        // When the query names a file type, recent files of that type come first.
+        var recentSlots = Math.Max(0, cap - list.Count - 2);
+        if (recentSlots > 0)
+        {
+            foreach (var file in OrderedRecentFiles(allList, query))
+            {
+                if (recentSlots <= 0) break;
+                if (seen.Add(file.Id))
+                {
+                    list.Add(file);
+                    recentSlots--;
+                }
+            }
+        }
 
         if (Calculator.TryParse(query, out var value))
         {
@@ -33,6 +55,32 @@ public static class Prefilter
         }
 
         return list.Take(cap).ToList();
+    }
+
+    private static IReadOnlyList<Candidate> OrderedRecentFiles(IReadOnlyList<Candidate> all, string query)
+    {
+        var tokens = query.ToLowerInvariant()
+            .Split(new[] { ' ', '.', ',', '!', '?', ';', ':', '(', ')', '/', '\\', '-', '_' },
+                StringSplitOptions.RemoveEmptyEntries)
+            .ToHashSet();
+
+        // The index is ordered by recency (newest first); a stable sort keeps that
+        // order within files that match the query's file-type hint.
+        return all
+            .Where(c => c.Kind == CandidateKind.OpenFile)
+            .OrderByDescending(f => ExtensionMatches(f.Title, tokens))
+            .ToList();
+    }
+
+    private static bool ExtensionMatches(string title, HashSet<string> tokens)
+    {
+        var ext = Path.GetExtension(title).TrimStart('.').ToLowerInvariant();
+        if (ext.Length == 0) return false;
+
+        return tokens.Contains(ext)
+               || tokens.Any(t => t.Length >= 2 &&
+                                  (ext.StartsWith(t, StringComparison.Ordinal) ||
+                                   t.StartsWith(ext, StringComparison.Ordinal)));
     }
 
     public static string AssignIds(IReadOnlyList<Candidate> candidates)

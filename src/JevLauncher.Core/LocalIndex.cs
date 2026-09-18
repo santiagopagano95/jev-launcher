@@ -43,14 +43,16 @@ public static class LocalIndex
 
     public static IEnumerable<Candidate> Files()
     {
+        var entries = new List<(string Path, DateTime Modified)>();
         foreach (var folder in IndexedFolders.Where(Directory.Exists))
-        {
-            foreach (var file in EnumerateFolder(folder, 0))
-                yield return file;
-        }
+            CollectFiles(folder, 0, entries);
+
+        return entries
+            .OrderByDescending(e => e.Modified)
+            .Select(e => FileCandidateFromPath(e.Path, e.Modified));
     }
 
-    private static IEnumerable<Candidate> EnumerateFolder(string folder, int depth)
+    private static void CollectFiles(string folder, int depth, List<(string Path, DateTime Modified)> entries)
     {
         const int cap = 400;
         IEnumerable<string> files;
@@ -60,18 +62,19 @@ public static class LocalIndex
             files = Directory.EnumerateFiles(folder).Take(cap).ToList();
             dirs = Directory.EnumerateDirectories(folder).Take(cap).ToList();
         }
-        catch (UnauthorizedAccessException) { yield break; }
+        catch (UnauthorizedAccessException) { return; }
 
         foreach (var file in files)
         {
-            var modified = File.GetLastWriteTime(file);
-            yield return FileCandidateFromPath(file, modified);
+            DateTime modified;
+            try { modified = File.GetLastWriteTime(file); }
+            catch { continue; }
+            entries.Add((file, modified));
         }
 
-        if (depth >= 1) yield break;
+        if (depth >= 1) return;
         foreach (var dir in dirs)
-            foreach (var nested in EnumerateFolder(dir, depth + 1))
-                yield return nested;
+            CollectFiles(dir, depth + 1, entries);
     }
 
     public static Candidate FileCandidateFromPath(string path, DateTime modified)
