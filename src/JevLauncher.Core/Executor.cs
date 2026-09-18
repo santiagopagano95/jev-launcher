@@ -19,6 +19,12 @@ public static class Executor
             case CandidateKind.Calculate:
                 if (candidate.Target is { } text) setClipboard(text);
                 break;
+            case CandidateKind.Copy:
+                if (candidate.Target is { } copyText) setClipboard(copyText);
+                break;
+            case CandidateKind.FocusWindow:
+                WindowList.Focus(candidate.Target);
+                break;
             case CandidateKind.WebSearch:
                 ShellExecute(BuildSearchUrl(candidate.Target ?? string.Empty, searchTemplate ?? DefaultSearchTemplate));
                 break;

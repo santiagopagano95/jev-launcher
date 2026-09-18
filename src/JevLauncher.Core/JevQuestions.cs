@@ -103,6 +103,10 @@ public static class JevQuestions
         CandidateKind.RunShortcut => "run_shortcut",
         CandidateKind.OpenUrl => "open_url",
         CandidateKind.Command => "command",
+        CandidateKind.Copy => "copy",
+        CandidateKind.FocusWindow => "focus_window",
+        CandidateKind.SaveNote => "save_note",
+        CandidateKind.Timer => "timer",
         _ => "unclear",
     };
 }

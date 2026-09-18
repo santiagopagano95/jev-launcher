@@ -52,6 +52,10 @@ public class JevQuestionsTests
     [Theory]
     [InlineData(CandidateKind.OpenUrl, "open_url")]
     [InlineData(CandidateKind.Command, "command")]
+    [InlineData(CandidateKind.Copy, "copy")]
+    [InlineData(CandidateKind.FocusWindow, "focus_window")]
+    [InlineData(CandidateKind.SaveNote, "save_note")]
+    [InlineData(CandidateKind.Timer, "timer")]
     public void Maps_command_kinds(CandidateKind kind, string expected)
     {
         Assert.Equal(expected, JevQuestions.KindName(kind));
