@@ -3,7 +3,7 @@ using System.Text;
 
 namespace JevLauncher.Core;
 
-public sealed class JevClient
+public sealed class JevClient : IJevQuery
 {
     private const string Endpoint = "https://api.typesafe.ai/v1/systemone";
 
