@@ -84,6 +84,9 @@ public partial class App : Application
             Dispatcher.InvokeAsync(async () =>
             {
                 var report = await _panel.RunSmokeAsync();
+                var tray = TrayIcon.Attach(_panel!, static () => { }, static () => { }, static () => { });
+                report += $"tray icon => IsCreated={tray.IsCreated}{Environment.NewLine}";
+                tray.Dispose();
                 File.WriteAllText(Path.Combine(Path.GetTempPath(), "jev-smoke.txt"), report);
                 Shutdown();
             });
