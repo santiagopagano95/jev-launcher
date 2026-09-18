@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using JevLauncher.Core;
 
@@ -88,6 +90,7 @@ public partial class PanelWindow : Window
 
         Show();
         Activate();
+        SetForegroundWindow(new WindowInteropHelper(this).Handle);
         QueryBox.Focus();
         QueryBox.SelectAll();
         RenderRows(_engine.Update(QueryBox.Text ?? string.Empty));
@@ -214,6 +217,8 @@ public partial class PanelWindow : Window
         catch { /* clipboard can be locked by another process */ }
     }
 
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+
     private void AddRecentApp(string title)
     {
         _recentApps.Remove(title);
@@ -280,6 +285,8 @@ public partial class PanelWindow : Window
         settingsProbe.SetApiKey("smoke-key");
         report.AppendLine("settings key roundtrip => " + (settingsProbe.GetApiKey() == "smoke-key" ? "ok" : "FAILED"));
         report.AppendLine("settings hotkey parse => " + string.Join(",", HotKey.Parse("Alt+Space")));
+        _ = new SettingsWindow(new Settings());
+        report.AppendLine("settings window XAML => loaded");
 
         void Probe(string q)
         {
