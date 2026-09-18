@@ -42,8 +42,32 @@ public static class WebSearchResponse
             : null;
 }
 
-public sealed class BraveWebSearch : IWebSearch
+public static class WebResultCandidates
 {
+    public static IReadOnlyList<Candidate> Build(IReadOnlyList<WebResult> results) =>
+        results.Select((result, index) => new Candidate(
+            "web:" + index,
+            CandidateKind.OpenUrl,
+            result.Title,
+            Detail(result),
+            result.Title + " " + Domain(result.Url),
+            result.Url)).ToList();
+
+    private static string Detail(WebResult result)
+    {
+        var domain = Domain(result.Url);
+        var snippet = Truncate(result.Description.ReplaceLineEndings(" "), 90);
+        return string.IsNullOrWhiteSpace(snippet) ? domain : $"{domain} · {snippet}";
+    }
+
+    private static string Domain(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : url;
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..max] + "…";
+}
+
+public sealed class BraveWebSearch : IWebSearch{
     private const string Endpoint = "https://api.search.brave.com/res/v1/web/search";
 
     private readonly HttpClient _http;
