@@ -61,6 +61,11 @@
     <TextBlock x:Name="EnvNote" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
                Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
 
+    <TextBlock Text="Brave Search API key — for inline /web results" Style="{StaticResource FieldLabel}" />
+    <PasswordBox x:Name="BraveKeyBox" Style="{StaticResource Field}" Margin="0,0,0,12" />
+    <Button x:Name="TestWebButton" Content="Test web search" Style="{StaticResource SecondaryButton}"
+            Click="OnTestWebClick" HorizontalAlignment="Left" Margin="0,0,0,16" />
+
     <TextBlock Text="Hotkey — focus the box and press a combination" Style="{StaticResource FieldLabel}" />
     <TextBox x:Name="HotkeyBox" Style="{StaticResource Field}" FontFamily="{StaticResource MonoFont}"
              IsReadOnly="True" Margin="0,0,0,16" PreviewKeyDown="OnHotkeyKeyDown" />

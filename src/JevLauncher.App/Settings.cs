@@ -11,6 +11,7 @@ public sealed class Settings
     public const string DefaultSearchTemplate = "https://www.google.com/search?q={0}";
 
     public string? EncryptedApiKey { get; set; }
+    public string? EncryptedBraveKey { get; set; }
     public string HotKey { get; set; } = JevLauncher.App.HotKey.Default;
     public string SearchTemplate { get; set; } = DefaultSearchTemplate;
     public List<Snippet> Snippets { get; set; } = new();
@@ -48,30 +49,37 @@ public sealed class Settings
     public string? GetApiKey()
     {
         var env = Environment.GetEnvironmentVariable("TYPESAFE_API_KEY");
-        if (!string.IsNullOrWhiteSpace(env)) return env;
-        if (string.IsNullOrWhiteSpace(EncryptedApiKey)) return null;
+        return !string.IsNullOrWhiteSpace(env) ? env : Unprotect(EncryptedApiKey);
+    }
 
+    public void SetApiKey(string? key) => EncryptedApiKey = Protect(key);
+
+    public string? GetBraveApiKey()
+    {
+        var env = Environment.GetEnvironmentVariable("BRAVE_API_KEY");
+        return !string.IsNullOrWhiteSpace(env) ? env : Unprotect(EncryptedBraveKey);
+    }
+
+    public void SetBraveApiKey(string? key) => EncryptedBraveKey = Protect(key);
+
+    private static string? Protect(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
+        return Convert.ToBase64String(bytes);
+    }
+
+    private static string? Unprotect(string? encrypted)
+    {
+        if (string.IsNullOrWhiteSpace(encrypted)) return null;
         try
         {
-            var bytes = Convert.FromBase64String(EncryptedApiKey);
-            var plain = ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(plain);
+            var bytes = Convert.FromBase64String(encrypted);
+            return Encoding.UTF8.GetString(ProtectedData.Unprotect(bytes, null, DataProtectionScope.CurrentUser));
         }
         catch
         {
             return null;
         }
-    }
-
-    public void SetApiKey(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            EncryptedApiKey = null;
-            return;
-        }
-
-        var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(key), null, DataProtectionScope.CurrentUser);
-        EncryptedApiKey = Convert.ToBase64String(bytes);
     }
 }

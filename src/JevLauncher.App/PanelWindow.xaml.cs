@@ -27,6 +27,7 @@ public partial class PanelWindow : Window
     private readonly List<string> _recentApps = new();
     private readonly ObservableCollection<RowView> _rows = new();
     private readonly LauncherServices _services = new();
+    private readonly HttpClient _braveHttp = new();
     private const int MaxRows = 7;
     private const int PaletteRows = 14;
     private readonly DispatcherTimer _hideTimer;
@@ -57,6 +58,7 @@ public partial class PanelWindow : Window
         _services.Notes = new NotesStore(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "notes.txt"));
         _services.Windows = WindowList.Build;
+        ConfigureWebSearch();
 
         _engine = new LauncherEngine(
             Array.Empty<Candidate>(),
@@ -84,6 +86,14 @@ public partial class PanelWindow : Window
         };
 
         _ = Task.Run(BuildIndex);
+    }
+
+    private void ConfigureWebSearch()
+    {
+        var key = _settings.GetBraveApiKey();
+        _services.WebSearch = string.IsNullOrWhiteSpace(key)
+            ? null
+            : new BraveWebSearch(_braveHttp, key);
     }
 
     public void CreateTrayIcon()
@@ -143,6 +153,7 @@ public partial class PanelWindow : Window
             _settings.Save();
             _client.SetApiKey(_settings.GetApiKey());
             _services.Snippets = _settings.Snippets;
+            ConfigureWebSearch();
             SettingsChanged?.Invoke();
             UpdateFooter();
         }
@@ -461,6 +472,9 @@ public partial class PanelWindow : Window
             FooterLeft.Text = _flash;
         else if (!string.IsNullOrEmpty(_lastError))
             FooterLeft.Text = _lastError;
+        else if (_services.WebSearch is null &&
+                 (QueryBox.Text ?? string.Empty).TrimStart().StartsWith("/web", StringComparison.OrdinalIgnoreCase))
+            FooterLeft.Text = "Brave API key not set — opening Google instead";
         else if (!_client.HasKey)
             FooterLeft.Text = "TYPESAFE_API_KEY is not set — local matching only";
         else
@@ -568,6 +582,7 @@ public partial class PanelWindow : Window
         report.AppendLine($"windows => {WindowList.Build().Count}");
         report.AppendLine($"notes => {_services.Notes?.Recent(20).Count ?? 0}");
         report.AppendLine($"clipboard history => {_services.Clipboard.Items.Count}");
+        report.AppendLine($"web search => {(_services.WebSearch is null ? "not configured" : "configured")}");
 
         QueryBox.Text = "dark";
         RenderRows(_engine.Update("dark"));
