@@ -101,6 +101,8 @@ public static class JevQuestions
         CandidateKind.Calculate => "calculate",
         CandidateKind.SystemToggle => "system_toggle",
         CandidateKind.RunShortcut => "run_shortcut",
+        CandidateKind.OpenUrl => "open_url",
+        CandidateKind.Command => "command",
         _ => "unclear",
     };
 }

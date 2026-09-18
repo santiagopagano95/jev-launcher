@@ -48,4 +48,12 @@ public class JevQuestionsTests
         Assert.Equal("c0", conv.Candidates[0].Id);
         Assert.Contains("c0", json);
     }
+
+    [Theory]
+    [InlineData(CandidateKind.OpenUrl, "open_url")]
+    [InlineData(CandidateKind.Command, "command")]
+    public void Maps_command_kinds(CandidateKind kind, string expected)
+    {
+        Assert.Equal(expected, JevQuestions.KindName(kind));
+    }
 }

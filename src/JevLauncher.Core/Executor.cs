@@ -25,6 +25,7 @@ public static class Executor
             case CandidateKind.OpenApp:
             case CandidateKind.OpenFile:
             case CandidateKind.RunShortcut:
+            case CandidateKind.OpenUrl:
                 if (!string.IsNullOrWhiteSpace(candidate.Target)) ShellExecute(candidate.Target);
                 break;
         }
