@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Resource Include="Fonts\*.ttf" />
+    <Resource Include="Assets\jev.ico" />
   </ItemGroup>
 
   <PropertyGroup>

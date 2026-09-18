@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 
 namespace JevLauncher.App;
@@ -23,7 +24,7 @@ public static class TrayIcon
         var icon = new TaskbarIcon
         {
             ToolTipText = "Jev Launcher — Alt+Space",
-            Icon = System.Drawing.SystemIcons.Application,
+            IconSource = new BitmapImage(new Uri("pack://application:,,,/Assets/jev.ico")) { CacheOption = BitmapCacheOption.OnLoad },
             ContextMenu = menu,
             LeftClickCommand = new RelayCommand(toggle),
         };
