@@ -15,9 +15,12 @@ public static class Prefilter
             .ToList();
     }
 
-    public static IReadOnlyList<Candidate> BuildCandidates(string query, IEnumerable<Candidate> all, int cap)
+    public static IReadOnlyList<Candidate> BuildCandidates(string query, IEnumerable<Candidate> all, int cap,
+        CandidateKind? only = null)
     {
-        var allList = all as IReadOnlyList<Candidate> ?? all.ToList();
+        var allList = (all as IReadOnlyList<Candidate> ?? all.ToList())
+            .Where(c => only is null || c.Kind == only)
+            .ToList();
 
         var list = TopMatches(query, allList, Math.Max(0, cap - 2)).ToList();
         var seen = list.Select(c => c.Id).ToHashSet();

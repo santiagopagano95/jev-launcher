@@ -38,4 +38,24 @@ public class PrefilterTests
         var result = Prefilter.BuildCandidates("app", all, 15);
         Assert.True(result.Count <= 15);
     }
+
+    [Fact]
+    public void Scope_filter_excludes_other_kinds()
+    {
+        var all = new List<Candidate>
+        {
+            C("f0", "budget.pdf", kind: CandidateKind.OpenFile),
+            C("a0", "Budget App", kind: CandidateKind.OpenApp),
+            C("t0", "Toggle Dark Mode", "dark", CandidateKind.SystemToggle),
+        };
+
+        var files = Prefilter.BuildCandidates("budget", all, 15, CandidateKind.OpenFile);
+        Assert.Contains(files, c => c.Id == "f0");
+        Assert.DoesNotContain(files, c => c.Kind == CandidateKind.OpenApp);
+        Assert.DoesNotContain(files, c => c.Kind == CandidateKind.SystemToggle);
+
+        var apps = Prefilter.BuildCandidates("budget", all, 15, CandidateKind.OpenApp);
+        Assert.Contains(apps, c => c.Id == "a0");
+        Assert.DoesNotContain(apps, c => c.Kind == CandidateKind.OpenFile);
+    }
 }
