@@ -36,7 +36,7 @@ public partial class App : Application
 
     private static readonly bool DebugToggle = Environment.GetEnvironmentVariable("JEV_LAUNCHER_DEBUG") == "1";
 
-    private static void DebugLog(string text)
+    internal static void DebugLog(string text)
     {
         if (!DebugToggle) return;
         try

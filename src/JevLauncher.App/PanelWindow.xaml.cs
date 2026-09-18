@@ -83,6 +83,7 @@ public partial class PanelWindow : Window
 
     public void ShowPanel()
     {
+        App.DebugLog("ShowPanel");
         _lastError = string.Empty;
         var wa = SystemParameters.WorkArea;
         Left = wa.Left + (wa.Width - Width) / 2;
@@ -100,6 +101,7 @@ public partial class PanelWindow : Window
 
     public void HidePanel()
     {
+        App.DebugLog("HidePanel");
         _hideTimer.Stop();
         _debounce.Stop();
         Hide();
