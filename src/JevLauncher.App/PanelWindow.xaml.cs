@@ -12,6 +12,7 @@ namespace JevLauncher.App;
 public partial class PanelWindow : Window
 {
     private readonly Stats _stats = new();
+    private readonly Settings _settings;
     private readonly JevClient _client;
     private readonly LauncherEngine _engine;
     private readonly IClipboardKindProvider _clipboard = new WindowsClipboardKindProvider();
@@ -28,12 +29,14 @@ public partial class PanelWindow : Window
     private string _lastError = string.Empty;
 
     public Action? OpenSettingsAction { get; set; }
+    public event Action? SettingsChanged;
 
-    public PanelWindow()
+    public PanelWindow(Settings settings)
     {
         InitializeComponent();
 
-        _client = new JevClient(new HttpClient(), Environment.GetEnvironmentVariable("TYPESAFE_API_KEY"));
+        _settings = settings;
+        _client = new JevClient(new HttpClient(), _settings.GetApiKey());
         _engine = new LauncherEngine(
             Array.Empty<Candidate>(),
             _client,
@@ -104,7 +107,15 @@ public partial class PanelWindow : Window
 
     public void OpenSettings()
     {
-        // Wired in Task 16.
+        var window = new SettingsWindow(_settings);
+        if (IsVisible) window.Owner = this;
+        if (window.ShowDialog() == true)
+        {
+            _settings.Save();
+            _client.SetApiKey(_settings.GetApiKey());
+            SettingsChanged?.Invoke();
+            UpdateFooter();
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e) => Acrylic.Apply(this, dark: true);
@@ -179,7 +190,7 @@ public partial class PanelWindow : Window
             }
             else
             {
-                Executor.Launch(candidate, SetClipboard);
+                Executor.Launch(candidate, SetClipboard, _settings.SearchTemplate);
             }
 
             if (candidate.Kind == CandidateKind.OpenApp) AddRecentApp(candidate.Title);

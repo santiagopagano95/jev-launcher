@@ -8,7 +8,7 @@ public sealed class JevClient : IJevQuery
     private const string Endpoint = "https://api.typesafe.ai/v1/systemone";
 
     private readonly HttpClient _http;
-    private readonly string? _apiKey;
+    private string? _apiKey;
 
     public JevClient(HttpClient http, string? apiKey)
     {
@@ -18,6 +18,8 @@ public sealed class JevClient : IJevQuery
     }
 
     public bool HasKey => _apiKey is not null;
+
+    public void SetApiKey(string? apiKey) => _apiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey;
 
     public async Task<JevResponse?> QueryAsync(string query, Conversation conversation, CancellationToken ct = default)
     {

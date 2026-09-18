@@ -12,7 +12,7 @@ public static class Executor
     public static string? ClipboardTextFor(Candidate candidate)
         => candidate.Kind == CandidateKind.Calculate ? candidate.Target : null;
 
-    public static void Launch(Candidate candidate, Action<string> setClipboard)
+    public static void Launch(Candidate candidate, Action<string> setClipboard, string? searchTemplate = null)
     {
         switch (candidate.Kind)
         {
@@ -20,7 +20,7 @@ public static class Executor
                 if (candidate.Target is { } text) setClipboard(text);
                 break;
             case CandidateKind.WebSearch:
-                ShellExecute(BuildSearchUrl(candidate.Target ?? string.Empty, DefaultSearchTemplate));
+                ShellExecute(BuildSearchUrl(candidate.Target ?? string.Empty, searchTemplate ?? DefaultSearchTemplate));
                 break;
             case CandidateKind.OpenApp:
             case CandidateKind.OpenFile:

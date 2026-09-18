@@ -1,0 +1,30 @@
+<Window x:Class="JevLauncher.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jev Launcher — Settings" Width="500" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#111118">
+  <StackPanel Margin="18">
+    <TextBlock Text="TypeSafe API key" Foreground="#8A8A99"/>
+    <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,6" Padding="6"/>
+    <TextBlock x:Name="EnvNote" Foreground="#8A8A99" FontSize="11" Margin="0,0,0,14"
+               TextWrapping="Wrap"/>
+
+    <TextBlock Text="Hotkey (focus the box and press a combination)" Foreground="#8A8A99"/>
+    <TextBox x:Name="HotkeyBox" Margin="0,4,0,14" Padding="6" IsReadOnly="True"
+             PreviewKeyDown="OnHotkeyKeyDown"/>
+
+    <TextBlock Text="Search URL template (use {0} for the query)" Foreground="#8A8A99"/>
+    <TextBox x:Name="TemplateBox" Margin="0,4,0,14" Padding="6"/>
+
+    <TextBlock x:Name="TestResult" Foreground="#3DDC84" Margin="0,0,0,14"
+               TextWrapping="Wrap"/>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="TestButton" Content="Test connection" Click="OnTestClick"
+              Margin="0,0,8,0" Padding="10,4"/>
+      <Button Content="Cancel" IsCancel="True" Margin="0,0,8,0" Padding="10,4"/>
+      <Button Content="Save" IsDefault="True" Click="OnSaveClick" Padding="10,4"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

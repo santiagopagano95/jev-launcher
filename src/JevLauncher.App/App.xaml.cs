@@ -8,6 +8,7 @@ public partial class App : Application
 {
     private PanelWindow? _panel;
     private HotKey? _hotKey;
+    private Settings? _settings;
 
     public App()
     {
@@ -32,7 +33,8 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        _panel = new PanelWindow();
+        _settings = Settings.Load();
+        _panel = new PanelWindow(_settings);
         _panel.OpenSettingsAction = () => _panel.OpenSettings();
 
         if (e.Args.Contains("--smoke"))
@@ -48,10 +50,18 @@ public partial class App : Application
 
         _panel.CreateTrayIcon();
 
-        _hotKey = new HotKey(_panel, () => _panel.Toggle());
+        RegisterHotKey();
+        _panel.SettingsChanged += RegisterHotKey;
+    }
+
+    private void RegisterHotKey()
+    {
+        var panel = _panel!;
+        _hotKey?.Dispose();
+        _hotKey = new HotKey(panel, _settings!.HotKey, () => panel.Toggle());
         if (!_hotKey.IsRegistered)
             MessageBox.Show(
-                "Alt+Space is already in use. Use the tray icon to toggle the launcher.",
+                "The configured hotkey is already in use. Change it in Settings.",
                 "Jev Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
