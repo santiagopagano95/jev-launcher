@@ -23,7 +23,9 @@
         <Border x:Name="AccentLine" Grid.Row="1" Height="2"
                 Background="{StaticResource AccentGradient}" Opacity="0.3"/>
       </Grid>
-      <ItemsControl x:Name="Rows" MaxHeight="308" Margin="0,6,0,0">
+      <ScrollViewer x:Name="RowsScroll" MaxHeight="420" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl x:Name="Rows" Margin="0,6,0,0">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <Border x:Name="RowBorder" Padding="10,8" Margin="6,1" CornerRadius="8" Background="Transparent">
@@ -66,6 +68,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      </ScrollViewer>
       <Grid x:Name="Footer" Height="34" Margin="18,4,18,10">
         <TextBlock x:Name="FooterLeft" FontFamily="{StaticResource MonoFont}" FontSize="11"
                    Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"

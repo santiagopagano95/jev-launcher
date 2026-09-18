@@ -25,6 +25,7 @@ public partial class PanelWindow : Window
     private readonly List<string> _recentApps = new();
     private readonly ObservableCollection<RowView> _rows = new();
     private const int MaxRows = 7;
+    private const int PaletteRows = 14;
     private readonly DispatcherTimer _hideTimer;
     private readonly DispatcherTimer _debounce;
 
@@ -211,12 +212,40 @@ public partial class PanelWindow : Window
         _rows[_selected].IsSelected = false;
         _selected = next;
         _rows[_selected].IsSelected = true;
+        ScrollSelectionIntoView();
+    }
+
+    private void ScrollSelectionIntoView()
+    {
+        if (_selected < 0 || _selected >= _rows.Count) return;
+        if (Rows.ItemContainerGenerator.ContainerFromIndex(_selected) is not FrameworkElement container) return;
+
+        var position = container.TransformToAncestor(RowsScroll).Transform(new Point(0, 0));
+        if (position.Y < 0)
+            RowsScroll.ScrollToVerticalOffset(RowsScroll.VerticalOffset + position.Y);
+        else if (position.Y + container.ActualHeight > RowsScroll.ViewportHeight)
+            RowsScroll.ScrollToVerticalOffset(
+                RowsScroll.VerticalOffset + position.Y + container.ActualHeight - RowsScroll.ViewportHeight);
     }
 
     private void ExecuteSelected()
     {
         if (_selected < 0 || _selected >= _rows.Count) return;
         var candidate = _rows[_selected].Candidate;
+
+        // Command palette rows insert their text; app actions run immediately.
+        if (candidate.Id.StartsWith("app:", StringComparison.Ordinal))
+        {
+            RunAppAction(candidate.Id);
+            return;
+        }
+
+        if (candidate.Kind == CandidateKind.Command)
+        {
+            QueryBox.Text = candidate.Target ?? string.Empty;
+            QueryBox.CaretIndex = QueryBox.Text.Length;
+            return;
+        }
 
         _suppressHide = true;
         try
@@ -243,6 +272,25 @@ public partial class PanelWindow : Window
 
         if (string.IsNullOrEmpty(_lastError)) HidePanel();
         else UpdateFooter();
+    }
+
+    private void RunAppAction(string id)
+    {
+        switch (id)
+        {
+            case "app:settings":
+                OpenSettingsAction?.Invoke();
+                HidePanel();
+                break;
+            case "app:quit":
+                Application.Current.Shutdown();
+                break;
+            case "app:help":
+                QueryBox.Text = "/";
+                QueryBox.CaretIndex = QueryBox.Text.Length;
+                RenderRows(_engine.Update("/"));
+                break;
+        }
     }
 
     private static void SetClipboard(string text) => TrySetClipboard(text);
@@ -278,8 +326,12 @@ public partial class PanelWindow : Window
     {
         _rows.Clear();
         _selected = 0;
-        for (var i = 0; i < scored.Count && i < MaxRows; i++)
+        var cap = scored.Count > 0 && scored[0].Candidate.Kind == CandidateKind.Command
+            ? PaletteRows
+            : MaxRows;
+        for (var i = 0; i < scored.Count && i < cap; i++)
             _rows.Add(new RowView(scored[i], i == 0));
+        RowsScroll.ScrollToTop();
         UpdateFooter();
     }
 
@@ -386,6 +438,8 @@ public partial class PanelWindow : Window
         try { after = Clipboard.GetText(); } catch (Exception ex) { after = "<" + ex.Message + ">"; }
         report.AppendLine("15+2 run => clipboard: " + after);
 
+        Probe("/yt lofi beats");
+
         QueryBox.Text = "dark";
         RenderRows(_engine.Update("dark"));
         Rows.UpdateLayout();
@@ -418,6 +472,28 @@ public partial class PanelWindow : Window
             report.AppendLine("panel png failed => " + ex.Message);
         }
 
+        QueryBox.Text = "/";
+        RenderRows(_engine.Update("/"));
+        RootBorder.UpdateLayout();
+        report.AppendLine($"commands palette => {_rows.Count} entries");
+        try
+        {
+            var width = (int)Math.Ceiling(RootBorder.ActualWidth);
+            var height = (int)Math.Ceiling(RootBorder.ActualHeight);
+            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(RootBorder);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-commands.png");
+            using var stream = System.IO.File.Create(png);
+            encoder.Save(stream);
+            report.AppendLine($"commands png => {png} ({width}x{height})");
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("commands png failed => " + ex.Message);
+        }
+
         return report.ToString();
     }
 }
@@ -437,7 +513,9 @@ public sealed class RowView : INotifyPropertyChanged
     public string Title => Candidate.Title;
     public string Detail => Candidate.Detail;
     public string Glyph => GlyphFor(Candidate.Kind);
-    public string KindLabel => JevQuestions.KindName(Candidate.Kind);
+    public string KindLabel => Candidate.Kind == CandidateKind.Command
+        ? string.Empty
+        : JevQuestions.KindName(Candidate.Kind);
     public bool IsReady => Source.IsTopReady;
     public Visibility ReadyVisibility => Source.IsTopReady ? Visibility.Visible : Visibility.Collapsed;
 
@@ -462,6 +540,8 @@ public sealed class RowView : INotifyPropertyChanged
         CandidateKind.Calculate => "\uE8EF",
         CandidateKind.SystemToggle => "\uE713",
         CandidateKind.RunShortcut => "\uE756",
+        CandidateKind.Command => "\uE756",
+        CandidateKind.OpenUrl => "\uE774",
         _ => "\uE721",
     };
 }
