@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using JevLauncher.Core;
 
 namespace JevLauncher.App;
 
@@ -12,6 +13,7 @@ public sealed class Settings
     public string? EncryptedApiKey { get; set; }
     public string HotKey { get; set; } = JevLauncher.App.HotKey.Default;
     public string SearchTemplate { get; set; } = DefaultSearchTemplate;
+    public List<Snippet> Snippets { get; set; } = new();
 
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "settings.json");

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -11,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using H.NotifyIcon;
 using JevLauncher.Core;
 
 namespace JevLauncher.App;
@@ -24,12 +26,16 @@ public partial class PanelWindow : Window
     private readonly IClipboardKindProvider _clipboard = new WindowsClipboardKindProvider();
     private readonly List<string> _recentApps = new();
     private readonly ObservableCollection<RowView> _rows = new();
+    private readonly LauncherServices _services = new();
     private const int MaxRows = 7;
     private const int PaletteRows = 14;
     private readonly DispatcherTimer _hideTimer;
     private readonly DispatcherTimer _debounce;
 
-    private IDisposable? _tray;
+    private TaskbarIcon? _tray;
+    private HwndSource? _clipboardSource;
+    private DispatcherTimer? _timer;
+    private string _flash = string.Empty;
     private bool _suppressHide;
     private int _indexBuildInFlight;
     private volatile bool _indexReady;
@@ -46,11 +52,22 @@ public partial class PanelWindow : Window
 
         _settings = settings;
         _client = new JevClient(new HttpClient(), _settings.GetApiKey());
+
+        _services.Snippets = _settings.Snippets;
+        _services.Notes = new NotesStore(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "notes.txt"));
+        _services.Windows = WindowList.Build;
+
         _engine = new LauncherEngine(
             Array.Empty<Candidate>(),
             _client,
             _stats,
-            () => ContextProvider.Capture(_recentApps, _clipboard));
+            () => ContextProvider.Capture(_recentApps, _clipboard),
+            _services);
+
+        _clipboardSource = HwndSource.FromHwnd(new WindowInteropHelper(this).EnsureHandle());
+        _clipboardSource!.AddHook(ClipboardHook);
+        AddClipboardFormatListener(_clipboardSource.Handle);
 
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _hideTimer.Tick += (_, _) =>
@@ -125,6 +142,7 @@ public partial class PanelWindow : Window
         {
             _settings.Save();
             _client.SetApiKey(_settings.GetApiKey());
+            _services.Snippets = _settings.Snippets;
             SettingsChanged?.Invoke();
             UpdateFooter();
         }
@@ -199,7 +217,8 @@ public partial class PanelWindow : Window
                 e.Handled = true;
                 break;
             case Key.Enter:
-                ExecuteSelected();
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) CopySecondary();
+                else ExecuteSelected();
                 e.Handled = true;
                 break;
         }
@@ -247,6 +266,22 @@ public partial class PanelWindow : Window
             return;
         }
 
+        if (candidate.Kind == CandidateKind.SaveNote)
+        {
+            _services.Notes?.Append(candidate.Target ?? string.Empty);
+            _flash = "Note saved";
+            HidePanel();
+            return;
+        }
+
+        if (candidate.Kind == CandidateKind.Timer)
+        {
+            StartTimer(long.TryParse(candidate.Target, out var ms) ? ms : 0);
+            _flash = "Timer set";
+            HidePanel();
+            return;
+        }
+
         _suppressHide = true;
         try
         {
@@ -274,8 +309,93 @@ public partial class PanelWindow : Window
         else UpdateFooter();
     }
 
-    private void RunAppAction(string id)
+    private const int WM_CLIPBOARDUPDATE = 0x031D;
+
+    private IntPtr ClipboardHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WM_CLIPBOARDUPDATE)
+        {
+            try
+            {
+                if (Clipboard.ContainsText()) _services.Clipboard.Push(Clipboard.GetText());
+            }
+            catch
+            {
+                // The clipboard can be locked by another process.
+            }
+        }
+        return IntPtr.Zero;
+    }
+
+    private void CopySecondary()
+    {
+        if (_selected < 0 || _selected >= _rows.Count) return;
+        var target = _rows[_selected].Candidate.Target;
+        if (string.IsNullOrWhiteSpace(target)) return;
+
+        SetClipboard(target);
+        Flash("Copied to clipboard");
+    }
+
+    private void StartTimer(long milliseconds)
+    {
+        if (milliseconds <= 0) return;
+
+        _timer?.Stop();
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        _timer.Tick += (_, _) =>
+        {
+            _timer!.Stop();
+            Notify("Timer finished");
+        };
+        _timer.Start();
+    }
+
+    private void Notify(string message)
+    {
+        try
+        {
+            if (_tray is not null) _tray.TrayIcon.ShowNotification("Jev Launcher", message);
+            else MessageBox.Show(message, "Jev Launcher");
+        }
+        catch
+        {
+            // Notifications are best-effort.
+        }
+    }
+
+    private void Flash(string message)
+    {
+        _flash = message;
+        UpdateFooter();
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _flash = string.Empty;
+            UpdateFooter();
+        };
+        timer.Start();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (_clipboardSource is not null)
+        {
+            RemoveClipboardFormatListener(_clipboardSource.Handle);
+            _clipboardSource.RemoveHook(ClipboardHook);
+        }
+        base.OnClosed(e);
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+
+    private void RunAppAction(string id)    {
         switch (id)
         {
             case "app:settings":
@@ -337,14 +457,18 @@ public partial class PanelWindow : Window
 
     private void UpdateFooter()
     {
-        if (!string.IsNullOrEmpty(_lastError))
+        if (!string.IsNullOrEmpty(_flash))
+            FooterLeft.Text = _flash;
+        else if (!string.IsNullOrEmpty(_lastError))
             FooterLeft.Text = _lastError;
         else if (!_client.HasKey)
             FooterLeft.Text = "TYPESAFE_API_KEY is not set — local matching only";
         else
             FooterLeft.Text = $"{_stats.LastMs:0} ms · ${_stats.EstimatedCost:0.00000}";
 
-        FooterRight.Text = _rows.Count > 0 && _rows[0].IsReady ? "↵ ready" : string.Empty;
+        FooterRight.Text = _rows.Count == 0
+            ? string.Empty
+            : _rows[0].IsReady ? "↵ ready" : "Ctrl+Enter copy";
         FooterLeft.ToolTip =
             $"p50 {_stats.P50:0} ms · p95 {_stats.P95:0} ms · {_stats.Decisions} decisions · {_stats.InputTokens} tokens";
     }
@@ -439,6 +563,11 @@ public partial class PanelWindow : Window
         report.AppendLine("15+2 run => clipboard: " + after);
 
         Probe("/yt lofi beats");
+        Probe("/uuid");
+        Probe("/color #f386a1");
+        report.AppendLine($"windows => {WindowList.Build().Count}");
+        report.AppendLine($"notes => {_services.Notes?.Recent(20).Count ?? 0}");
+        report.AppendLine($"clipboard history => {_services.Clipboard.Items.Count}");
 
         QueryBox.Text = "dark";
         RenderRows(_engine.Update("dark"));
@@ -494,6 +623,27 @@ public partial class PanelWindow : Window
             report.AppendLine("commands png failed => " + ex.Message);
         }
 
+        QueryBox.Text = "/color #f386a1";
+        RenderRows(_engine.Update("/color #f386a1"));
+        RootBorder.UpdateLayout();
+        try
+        {
+            var width = (int)Math.Ceiling(RootBorder.ActualWidth);
+            var height = (int)Math.Ceiling(RootBorder.ActualHeight);
+            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(RootBorder);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-utility.png");
+            using var stream = System.IO.File.Create(png);
+            encoder.Save(stream);
+            report.AppendLine($"utility png => {png} ({width}x{height})");
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("utility png failed => " + ex.Message);
+        }
+
         return report.ToString();
     }
 }
@@ -542,6 +692,10 @@ public sealed class RowView : INotifyPropertyChanged
         CandidateKind.RunShortcut => "\uE756",
         CandidateKind.Command => "\uE756",
         CandidateKind.OpenUrl => "\uE774",
+        CandidateKind.Copy => "\uE8C8",
+        CandidateKind.FocusWindow => "\uE737",
+        CandidateKind.SaveNote => "\uE70B",
+        CandidateKind.Timer => "\uE916",
         _ => "\uE721",
     };
 }

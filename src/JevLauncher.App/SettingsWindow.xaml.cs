@@ -17,6 +17,8 @@ public partial class SettingsWindow : Window
 
         TemplateBox.Text = settings.SearchTemplate;
         HotkeyBox.Text = settings.HotKey;
+        SnippetsBox.Text = string.Join(Environment.NewLine,
+            settings.Snippets.Select(s => $"{s.Name} = {s.Text}"));
 
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TYPESAFE_API_KEY")))
             EnvNote.Text = "TYPESAFE_API_KEY is set in the environment and takes precedence over the stored key.";
@@ -44,7 +46,28 @@ public partial class SettingsWindow : Window
         _settings.SearchTemplate = string.IsNullOrWhiteSpace(TemplateBox.Text)
             ? Settings.DefaultSearchTemplate
             : TemplateBox.Text;
+        _settings.Snippets = ParseSnippets(SnippetsBox.Text);
         DialogResult = true;
+    }
+
+    private static List<Snippet> ParseSnippets(string text)
+    {
+        var list = new List<Snippet>();
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+
+            var equals = line.IndexOf('=');
+            if (equals <= 0) continue;
+
+            var name = line[..equals].Trim();
+            var value = line[(equals + 1)..].Trim();
+            if (name.Length == 0 || value.Length == 0) continue;
+
+            list.Add(new Snippet(name, value));
+        }
+        return list;
     }
 
     private async void OnTestClick(object sender, RoutedEventArgs e)

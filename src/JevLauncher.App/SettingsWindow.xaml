@@ -68,6 +68,10 @@
     <TextBlock Text="Search URL template — use {0} for the query" Style="{StaticResource FieldLabel}" />
     <TextBox x:Name="TemplateBox" Style="{StaticResource Field}" Margin="0,0,0,16" />
 
+    <TextBlock Text="Snippets — one per line: name = text" Style="{StaticResource FieldLabel}" />
+    <TextBox x:Name="SnippetsBox" Style="{StaticResource Field}" AcceptsReturn="True" Height="90"
+             VerticalScrollBarVisibility="Auto" Margin="0,0,0,16" />
+
     <TextBlock x:Name="TestResult" FontFamily="{StaticResource MonoFont}" FontSize="11"
                Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
 
