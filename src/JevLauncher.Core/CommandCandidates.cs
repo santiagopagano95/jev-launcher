@@ -27,6 +27,11 @@ public static class CommandCandidates
             $"Search {command.Title} for “{argument}”", "Opens your default browser",
             command.Keywords, BuildUrl(command.UrlTemplate!, argument));
 
+    public static Candidate Home(LauncherCommand command) =>
+        new("url:" + command.Id, CandidateKind.OpenUrl,
+            $"Open {command.Title}", "Opens your default browser",
+            command.Keywords, command.HomeUrl);
+
     public static Candidate AppAction(LauncherCommand command) =>
         new("app:" + command.Id, CandidateKind.Command, command.Title, command.Description,
             command.Keywords, command.InsertText);

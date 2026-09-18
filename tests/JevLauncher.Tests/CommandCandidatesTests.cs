@@ -34,4 +34,13 @@ public class CommandCandidatesTests
         Assert.Equal(CandidateKind.OpenUrl, candidate.Kind);
         Assert.Equal("https://www.youtube.com/results?search_query=lofi%20beats", candidate.Target);
     }
+
+    [Fact]
+    public void Home_builds_an_open_url_for_the_home_page()
+    {
+        var command = CommandParser.Resolve("netflix")!;
+        var candidate = CommandCandidates.Home(command);
+        Assert.Equal(CandidateKind.OpenUrl, candidate.Kind);
+        Assert.Equal("https://www.netflix.com", candidate.Target);
+    }
 }

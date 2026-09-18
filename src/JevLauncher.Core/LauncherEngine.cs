@@ -45,9 +45,11 @@ public sealed class LauncherEngine
         switch (command.Scope)
         {
             case CommandScope.Web:
-                return string.IsNullOrWhiteSpace(argument)
-                    ? new List<Candidate> { CommandCandidates.ToPaletteRow(command) }
-                    : new List<Candidate> { CommandCandidates.Web(command, argument) };
+                if (!string.IsNullOrWhiteSpace(argument))
+                    return new List<Candidate> { CommandCandidates.Web(command, argument) };
+                if (!string.IsNullOrWhiteSpace(command.HomeUrl))
+                    return new List<Candidate> { CommandCandidates.Home(command) };
+                return new List<Candidate> { CommandCandidates.ToPaletteRow(command) };
             case CommandScope.Files:
                 return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenFile);
             case CommandScope.Apps:

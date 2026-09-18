@@ -38,6 +38,15 @@ public class CommandEngineTests
     }
 
     [Fact]
+    public void Web_command_without_argument_opens_the_home_page()
+    {
+        var (engine, _) = New();
+        var rows = engine.Update("/netflix");
+        Assert.Equal(CandidateKind.OpenUrl, rows[0].Candidate.Kind);
+        Assert.Equal("https://www.netflix.com", rows[0].Candidate.Target);
+    }
+
+    [Fact]
     public void Slash_alone_opens_the_palette()
     {
         var (engine, _) = New();
