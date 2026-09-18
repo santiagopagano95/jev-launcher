@@ -7,6 +7,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using JevLauncher.Core;
 
@@ -147,9 +150,35 @@ public partial class PanelWindow : Window
     private async Task RunQueryAsync()
     {
         var query = QueryBox.Text ?? string.Empty;
-        var rows = await _engine.UpdateAsync(query);
-        if ((QueryBox.Text ?? string.Empty) != query) return;
-        RenderRows(rows);
+        SetInFlight(true);
+        try
+        {
+            var rows = await _engine.UpdateAsync(query);
+            if ((QueryBox.Text ?? string.Empty) != query) return;
+            RenderRows(rows);
+        }
+        finally
+        {
+            SetInFlight(false);
+        }
+    }
+
+    private void SetInFlight(bool inFlight)
+    {
+        if (inFlight)
+        {
+            var pulse = new DoubleAnimation(0.35, 1.0, TimeSpan.FromMilliseconds(700))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+            };
+            AccentLine.BeginAnimation(OpacityProperty, pulse);
+        }
+        else
+        {
+            AccentLine.BeginAnimation(OpacityProperty, null);
+            AccentLine.Opacity = 0.3;
+        }
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
@@ -303,8 +332,31 @@ public partial class PanelWindow : Window
         settingsProbe.SetApiKey("smoke-key");
         report.AppendLine("settings key roundtrip => " + (settingsProbe.GetApiKey() == "smoke-key" ? "ok" : "FAILED"));
         report.AppendLine("settings hotkey parse => " + string.Join(",", HotKey.Parse("Alt+Space")));
-        _ = new SettingsWindow(new Settings());
-        report.AppendLine("settings window XAML => loaded");
+        try
+        {
+            var settingsWindow = new SettingsWindow(new Settings()) { Width = 520 };
+            settingsWindow.Show();
+            settingsWindow.UpdateLayout();
+            var root = settingsWindow.SettingsRoot;
+            var w = (int)Math.Ceiling(root.ActualWidth);
+            var h = (int)Math.Ceiling(root.ActualHeight);
+            if (w > 0 && h > 0)
+            {
+                var bitmap = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(root);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-settings.png");
+                using var stream = System.IO.File.Create(png);
+                encoder.Save(stream);
+                report.AppendLine($"settings png => {png} ({w}x{h})");
+            }
+            settingsWindow.Close();
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("settings png failed => " + ex.Message);
+        }
 
         void Probe(string q)
         {
@@ -334,10 +386,37 @@ public partial class PanelWindow : Window
         try { after = Clipboard.GetText(); } catch (Exception ex) { after = "<" + ex.Message + ">"; }
         report.AppendLine("15+2 run => clipboard: " + after);
 
+        QueryBox.Text = "dark";
         RenderRows(_engine.Update("dark"));
         Rows.UpdateLayout();
         var container = Rows.ItemContainerGenerator.ContainerFromIndex(0);
         report.AppendLine($"list control => Items={Rows.Items.Count}, first container={(container is null ? "null" : "ok")}");
+
+        try
+        {
+            RootBorder.UpdateLayout();
+            var width = (int)Math.Ceiling(RootBorder.ActualWidth);
+            var height = (int)Math.Ceiling(RootBorder.ActualHeight);
+            if (width > 0 && height > 0)
+            {
+                var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(RootBorder);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-panel.png");
+                using var stream = System.IO.File.Create(png);
+                encoder.Save(stream);
+                report.AppendLine($"panel png => {png} ({width}x{height})");
+            }
+            else
+            {
+                report.AppendLine("panel png => skipped (no size)");
+            }
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("panel png failed => " + ex.Message);
+        }
 
         return report.ToString();
     }
@@ -358,6 +437,7 @@ public sealed class RowView : INotifyPropertyChanged
     public string Title => Candidate.Title;
     public string Detail => Candidate.Detail;
     public string Glyph => GlyphFor(Candidate.Kind);
+    public string KindLabel => JevQuestions.KindName(Candidate.Kind);
     public bool IsReady => Source.IsTopReady;
     public Visibility ReadyVisibility => Source.IsTopReady ? Visibility.Visible : Visibility.Collapsed;
 

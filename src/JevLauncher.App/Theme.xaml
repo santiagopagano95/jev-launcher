@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Palette extracted from typesafe.ai -->
+  <SolidColorBrush x:Key="PanelBackground" Color="#F21E1E1E" />
+  <SolidColorBrush x:Key="PanelSolid" Color="#1E1E1E" />
+  <SolidColorBrush x:Key="TextPrimary" Color="#FEFEFE" />
+  <SolidColorBrush x:Key="TextSecondary" Color="#DEDEDE" />
+  <SolidColorBrush x:Key="TextMuted" Color="#C4C4C4" />
+  <SolidColorBrush x:Key="TextHint" Color="#ABBAB9" />
+  <SolidColorBrush x:Key="Hairline" Color="#14FFFFFF" />
+  <SolidColorBrush x:Key="RowSelected" Color="#0DFFFFFF" />
+  <SolidColorBrush x:Key="ReadyGreen" Color="#03AA5C" />
+  <SolidColorBrush x:Key="Teal" Color="#09AEA1" />
+
+  <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#F386A1" Offset="0" />
+    <GradientStop Color="#D45BB6" Offset="1" />
+  </LinearGradientBrush>
+
+  <FontFamily x:Key="UiFont">./Fonts/#Inter</FontFamily>
+  <FontFamily x:Key="MonoFont">./Fonts/#JetBrains Mono</FontFamily>
+
+</ResourceDictionary>
