@@ -31,10 +31,47 @@ public sealed class LauncherEngine
 
     public void SetIndex(IReadOnlyList<Candidate> index) => _index = index;
 
+    private IReadOnlyList<ScoredCandidate> ResolveCommand(string query) =>
+        Ranker.Rank(ResolveCommandCandidates(query), null);
+
+    private IReadOnlyList<Candidate> ResolveCommandCandidates(string query)
+    {
+        var (name, argument) = CommandParser.Split(query);
+        if (string.IsNullOrEmpty(name)) return CommandCandidates.Palette(string.Empty);
+
+        var command = CommandParser.Resolve(name);
+        if (command is null) return CommandCandidates.Palette(name);
+
+        switch (command.Scope)
+        {
+            case CommandScope.Web:
+                return string.IsNullOrWhiteSpace(argument)
+                    ? new List<Candidate> { CommandCandidates.ToPaletteRow(command) }
+                    : new List<Candidate> { CommandCandidates.Web(command, argument) };
+            case CommandScope.Files:
+                return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenFile);
+            case CommandScope.Apps:
+                return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenApp);
+            case CommandScope.Toggles:
+                return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.SystemToggle);
+            case CommandScope.Recent:
+                return Prefilter.BuildCandidates(argument, _index, 10, CandidateKind.OpenFile);
+            case CommandScope.Calculator:
+                return Prefilter.BuildCandidates(argument, _index, 3, CandidateKind.Calculate)
+                    .Where(c => c.Kind == CandidateKind.Calculate)
+                    .ToList();
+            case CommandScope.AppAction:
+                return new List<Candidate> { CommandCandidates.AppAction(command) };
+            default:
+                return CommandCandidates.Palette(name);
+        }
+    }
+
     public IReadOnlyList<ScoredCandidate> Update(string query)
     {
         _lastQuery = query;
         if (string.IsNullOrWhiteSpace(query)) return Array.Empty<ScoredCandidate>();
+        if (CommandParser.IsCommand(query)) return ResolveCommand(query);
         var candidates = Prefilter.BuildCandidates(query, _index, 15);
         return Ranker.Rank(candidates, _last);
     }
@@ -43,6 +80,7 @@ public sealed class LauncherEngine
     {
         _lastQuery = query;
         if (string.IsNullOrWhiteSpace(query)) return Array.Empty<ScoredCandidate>();
+        if (CommandParser.IsCommand(query)) return ResolveCommand(query);
 
         var candidates = Prefilter.BuildCandidates(query, _index, 15);
         var local = Ranker.Rank(candidates, _last);
