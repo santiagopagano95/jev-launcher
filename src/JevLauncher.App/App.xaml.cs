@@ -59,6 +59,16 @@ public partial class App : Application
         var wantToggle = e.Args.Contains("--toggle");
         var suppressHotKey = e.Args.Contains("--no-hotkey");
 
+        var setKeyAt = Array.IndexOf(e.Args, "--set-key");
+        if (setKeyAt >= 0 && setKeyAt + 1 < e.Args.Length)
+        {
+            var stored = Settings.Load();
+            stored.SetApiKey(e.Args[setKeyAt + 1]);
+            stored.Save();
+            Shutdown();
+            return;
+        }
+
         if (!smoke && !ClaimSingleInstance(wantToggle))
         {
             Shutdown();
