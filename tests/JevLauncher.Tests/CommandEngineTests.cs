@@ -106,7 +106,7 @@ public class CommandEngineTests
     {
         var (engine, _, _) = New();
         var rows = engine.Update("/settings");
-        Assert.Equal("app:settings", rows[0].Candidate.Id);
+        Assert.Equal("action:settings", rows[0].Candidate.Id);
     }
 
     [Fact]

@@ -43,8 +43,12 @@ public static class CommandCandidates
             command.Keywords, command.DesktopHome);
 
     public static Candidate AppAction(LauncherCommand command) =>
-        new("app:" + command.Id, CandidateKind.Command, command.Title, command.Description,
+        new("action:" + command.Id, CandidateKind.Command, command.Title, command.Description,
             command.Keywords, command.InsertText);
+
+    /// <summary>True only for launcher commands like /settings, never for indexed apps.</summary>
+    public static bool IsAppAction(Candidate candidate) =>
+        candidate.Id.StartsWith("action:", StringComparison.Ordinal);
 
     public static string BuildUrl(string template, string argument) =>
         string.Format(template, Uri.EscapeDataString(argument));

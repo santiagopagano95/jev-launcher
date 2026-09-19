@@ -253,7 +253,7 @@ public partial class PanelWindow : Window
         var candidate = _rows[_selected].Candidate;
 
         // Command palette rows insert their text; app actions run immediately.
-        if (candidate.Id.StartsWith("app:", StringComparison.Ordinal))
+        if (CommandCandidates.IsAppAction(candidate))
         {
             RunAppAction(candidate.Id);
             return;
@@ -405,14 +405,14 @@ public partial class PanelWindow : Window
     private void RunAppAction(string id)    {
         switch (id)
         {
-            case "app:settings":
+            case "action:settings":
                 OpenSettingsAction?.Invoke();
                 HidePanel();
                 break;
-            case "app:quit":
+            case "action:quit":
                 Application.Current.Shutdown();
                 break;
-            case "app:help":
+            case "action:help":
                 QueryBox.Text = "/";
                 QueryBox.CaretIndex = QueryBox.Text.Length;
                 RenderRows(_engine.Update("/"));
@@ -650,6 +650,17 @@ public partial class PanelWindow : Window
         catch (Exception ex)
         {
             report.AppendLine("utility png failed => " + ex.Message);
+        }
+
+        var openQuery = Environment.GetEnvironmentVariable("JEV_SMOKE_OPEN");
+        if (!string.IsNullOrWhiteSpace(openQuery))
+        {
+            RenderRows(_engine.Update(openQuery));
+            _selected = 0;
+            var top = _rows.Count > 0 ? _rows[0].Candidate : null;
+            report.AppendLine($"open test => {top?.Kind} | {top?.Id} | {top?.Title}");
+            ExecuteSelected();
+            report.AppendLine("open test => ExecuteSelected called");
         }
 
         return report.ToString();

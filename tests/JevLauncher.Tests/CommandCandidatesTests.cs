@@ -36,6 +36,23 @@ public class CommandCandidatesTests
     }
 
     [Fact]
+    public void App_action_ids_use_a_distinct_prefix()
+    {
+        var action = CommandCandidates.AppAction(CommandParser.Resolve("settings")!);
+        Assert.StartsWith("action:", action.Id);
+    }
+
+    [Fact]
+    public void Indexed_apps_are_not_mistaken_for_app_actions()
+    {
+        var app = LocalIndex.AppCandidateFromShortcut("Mensi.lnk", @"C:\x\Mensi.lnk");
+        Assert.False(CommandCandidates.IsAppAction(app));
+
+        var action = CommandCandidates.AppAction(CommandParser.Resolve("quit")!);
+        Assert.True(CommandCandidates.IsAppAction(action));
+    }
+
+    [Fact]
     public void Home_builds_an_open_url_for_the_home_page()
     {
         var command = CommandParser.Resolve("netflix")!;
