@@ -573,6 +573,8 @@ public partial class PanelWindow : Window
         Probe("/uuid");
         Probe("/color #f386a1");
         Probe("/spotify lofi beats");
+        report.AppendLine($"store apps found => {StoreApps.Enumerate().Count}");
+        Probe("/app calculadora");
         report.AppendLine($"windows => {WindowList.Build().Count}");
         report.AppendLine($"notes => {_services.Notes?.Recent(20).Count ?? 0}");
         report.AppendLine($"clipboard history => {_services.Clipboard.Items.Count}");

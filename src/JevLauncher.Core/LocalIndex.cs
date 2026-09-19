@@ -15,7 +15,10 @@ public static class LocalIndex
     {
         var list = new List<Candidate>();
         list.AddRange(SystemToggles.BuildCandidates());
-        list.AddRange(StartMenuApps());
+
+        var startMenuApps = StartMenuApps().ToList();
+        list.AddRange(startMenuApps);
+        list.AddRange(StoreApps.ToCandidates(StoreApps.Enumerate(), startMenuApps.Select(a => a.Title)));
         list.AddRange(Files());
         return list;
     }
