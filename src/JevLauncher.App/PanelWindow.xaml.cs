@@ -37,6 +37,7 @@ public partial class PanelWindow : Window
     private DispatcherTimer? _timer;
     private string _flash = string.Empty;
     private bool _suppressHide;
+    private bool _allowClose;
     private int _indexBuildInFlight;
     private volatile bool _indexReady;
     private int _selected;
@@ -95,8 +96,22 @@ public partial class PanelWindow : Window
             () =>
             {
                 _tray?.Dispose();
+                PrepareForExit();
                 Application.Current.Shutdown();
             });
+    }
+
+    /// <summary>Allows the window to close for real (used by Quit and smoke shutdown).</summary>
+    public void PrepareForExit() => _allowClose = true;
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+            HidePanel();
+        }
+        base.OnClosing(e);
     }
 
     public void Toggle()
@@ -141,6 +156,7 @@ public partial class PanelWindow : Window
         if (window.ShowDialog() == true)
         {
             _settings.Save();
+            Autostart.Set(_settings.StartWithWindows);
             _client.SetApiKey(_settings.GetApiKey());
             _services.Snippets = _settings.Snippets;
             SettingsChanged?.Invoke();
@@ -410,6 +426,7 @@ public partial class PanelWindow : Window
                 HidePanel();
                 break;
             case "action:quit":
+                PrepareForExit();
                 Application.Current.Shutdown();
                 break;
             case "action:help":

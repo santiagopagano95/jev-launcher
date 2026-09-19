@@ -72,6 +72,9 @@
     <TextBox x:Name="SnippetsBox" Style="{StaticResource Field}" AcceptsReturn="True" Height="90"
              VerticalScrollBarVisibility="Auto" Margin="0,0,0,16" />
 
+    <CheckBox x:Name="StartWithWindowsBox" Content="Start with Windows" Margin="0,0,0,16"
+              Foreground="{StaticResource TextSecondary}" FontFamily="{StaticResource UiFont}" />
+
     <TextBlock x:Name="TestResult" FontFamily="{StaticResource MonoFont}" FontSize="11"
                Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
 

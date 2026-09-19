@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
         HotkeyBox.Text = settings.HotKey;
         SnippetsBox.Text = string.Join(Environment.NewLine,
             settings.Snippets.Select(s => $"{s.Name} = {s.Text}"));
+        StartWithWindowsBox.IsChecked = settings.StartWithWindows;
 
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TYPESAFE_API_KEY")))
             EnvNote.Text = "TYPESAFE_API_KEY is set in the environment and takes precedence over the stored key.";
@@ -47,6 +48,7 @@ public partial class SettingsWindow : Window
             ? Settings.DefaultSearchTemplate
             : TemplateBox.Text;
         _settings.Snippets = ParseSnippets(SnippetsBox.Text);
+        _settings.StartWithWindows = StartWithWindowsBox.IsChecked == true;
         DialogResult = true;
     }
 

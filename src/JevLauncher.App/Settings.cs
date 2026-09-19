@@ -14,6 +14,7 @@ public sealed class Settings
     public string HotKey { get; set; } = JevLauncher.App.HotKey.Default;
     public string SearchTemplate { get; set; } = DefaultSearchTemplate;
     public List<Snippet> Snippets { get; set; } = new();
+    public bool StartWithWindows { get; set; } = true;
 
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "settings.json");

@@ -7,14 +7,16 @@ namespace JevLauncher.App;
 public partial class App : Application
 {
     private const string MutexName = @"Local\JevLauncher.SingleInstance";
+    private const string ShowEventName = @"Local\JevLauncher.ShowSignal";
     private const string ToggleEventName = @"Local\JevLauncher.ToggleSignal";
 
     private PanelWindow? _panel;
     private HotKey? _hotKey;
     private Settings? _settings;
     private Mutex? _singleInstance;
+    private EventWaitHandle? _showSignal;
     private EventWaitHandle? _toggleSignal;
-    private Thread? _toggleThread;
+    private Thread? _signalThread;
 
     public App()
     {
@@ -76,6 +78,7 @@ public partial class App : Application
         }
 
         _settings = Settings.Load();
+        Autostart.Set(_settings.StartWithWindows);
         _panel = new PanelWindow(_settings);
         _panel.OpenSettingsAction = () => _panel.OpenSettings();
 
@@ -88,6 +91,7 @@ public partial class App : Application
                 report += $"tray icon => IsCreated={tray.IsCreated}{Environment.NewLine}";
                 tray.Dispose();
                 File.WriteAllText(Path.Combine(Path.GetTempPath(), "jev-smoke.txt"), report);
+                _panel.PrepareForExit();
                 Shutdown();
             });
             return;
@@ -106,50 +110,61 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Returns true when this process is the launcher instance. When another
-    /// instance is already running, signals it to toggle the panel and returns false.
+    /// Returns true when this process is the launcher instance. When another instance is
+    /// already running, asks it to show (or toggle) the panel and returns false.
     /// </summary>
-    private bool ClaimSingleInstance(bool signalToggle)
+    private bool ClaimSingleInstance(bool wantToggle)
     {
         _singleInstance = new Mutex(initiallyOwned: true, MutexName, out var isFirstInstance);
 
         if (!isFirstInstance)
         {
-            if (signalToggle)
-            {
-                try
-                {
-                    if (EventWaitHandle.TryOpenExisting(ToggleEventName, out var signal))
-                    {
-                        signal.Set();
-                        signal.Dispose();
-                    }
-                }
-                catch
-                {
-                    // If signalling fails there is nothing useful we can do.
-                }
-            }
+            Signal(wantToggle ? ToggleEventName : ShowEventName);
             return false;
         }
 
+        _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         _toggleSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ToggleEventName);
-        _toggleThread = new Thread(() =>
+        _signalThread = new Thread(() =>
         {
-            while (_toggleSignal.WaitOne())
+            var handles = new WaitHandle[] { _showSignal, _toggleSignal };
+            while (true)
             {
+                int index;
+                try { index = WaitHandle.WaitAny(handles); }
+                catch { break; }
+
+                DebugLog(index == 0 ? "show signal received" : "toggle signal received");
                 try
                 {
-                    DebugLog("toggle signal received");
-                    Dispatcher.Invoke(() => _panel?.Toggle());
-                    DebugLog("panel toggled");
+                    if (index == 0) Dispatcher.Invoke(() => _panel?.ShowPanel());
+                    else Dispatcher.Invoke(() => _panel?.Toggle());
                 }
-                catch { /* shutting down */ }
+                catch
+                {
+                    // shutting down
+                }
             }
         })
         { IsBackground = true };
-        _toggleThread.Start();
+        _signalThread.Start();
         return true;
+    }
+
+    private static void Signal(string eventName)
+    {
+        try
+        {
+            if (EventWaitHandle.TryOpenExisting(eventName, out var handle))
+            {
+                handle.Set();
+                handle.Dispose();
+            }
+        }
+        catch
+        {
+            // If signalling fails there is nothing useful we can do.
+        }
     }
 
     private void RegisterHotKey()
@@ -166,6 +181,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _hotKey?.Dispose();
+        _showSignal?.Dispose();
         _toggleSignal?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
