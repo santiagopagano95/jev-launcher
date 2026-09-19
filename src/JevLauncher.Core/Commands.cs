@@ -3,7 +3,6 @@ namespace JevLauncher.Core;
 public enum CommandScope
 {
     Web,
-    WebResults,
     Files,
     Apps,
     Toggles,
@@ -37,8 +36,8 @@ public static class Commands
     public static readonly IReadOnlyList<LauncherCommand> All = new[]
     {
         // Web search
-        new LauncherCommand("web", "Search the web", "Inline results with Brave, or open Google", new[] { "g", "search", "s" },
-            CommandScope.WebResults, "https://www.google.com/search?q={0}"),
+        new LauncherCommand("web", "Search the web", "Google", new[] { "g", "search", "s" },
+            CommandScope.Web, "https://www.google.com/search?q={0}"),
         new LauncherCommand("ddg", "DuckDuckGo", "Search the web", Array.Empty<string>(), CommandScope.Web,
             "https://duckduckgo.com/?q={0}", "https://duckduckgo.com"),
         new LauncherCommand("bing", "Bing", "Search the web", Array.Empty<string>(), CommandScope.Web,

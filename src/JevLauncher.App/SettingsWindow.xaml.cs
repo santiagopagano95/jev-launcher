@@ -24,9 +24,6 @@ public partial class SettingsWindow : Window
             EnvNote.Text = "TYPESAFE_API_KEY is set in the environment and takes precedence over the stored key.";
         else if (settings.GetApiKey() is { } stored)
             ApiKeyBox.Password = stored;
-
-        if (settings.GetBraveApiKey() is { } brave)
-            BraveKeyBox.Password = brave;
     }
 
     private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
@@ -45,7 +42,6 @@ public partial class SettingsWindow : Window
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
         _settings.SetApiKey(string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? null : ApiKeyBox.Password);
-        _settings.SetBraveApiKey(string.IsNullOrWhiteSpace(BraveKeyBox.Password) ? null : BraveKeyBox.Password);
         _settings.HotKey = string.IsNullOrWhiteSpace(HotkeyBox.Text) ? HotKey.Default : HotkeyBox.Text;
         _settings.SearchTemplate = string.IsNullOrWhiteSpace(TemplateBox.Text)
             ? Settings.DefaultSearchTemplate
@@ -72,42 +68,6 @@ public partial class SettingsWindow : Window
             list.Add(new Snippet(name, value));
         }
         return list;
-    }
-
-    private async void OnTestWebClick(object sender, RoutedEventArgs e)
-    {
-        TestWebButton.IsEnabled = false;
-        TestResult.Foreground = System.Windows.Media.Brushes.Gray;
-        TestResult.Text = "Testing web search…";
-        try
-        {
-            var key = string.IsNullOrWhiteSpace(BraveKeyBox.Password) ? null : BraveKeyBox.Password;
-            var search = new BraveWebSearch(new HttpClient(), key ?? string.Empty);
-
-            var sw = Stopwatch.StartNew();
-            var results = await search.SearchAsync("typesafe ai");
-            sw.Stop();
-
-            if (results.Count == 0)
-            {
-                TestResult.Foreground = System.Windows.Media.Brushes.OrangeRed;
-                TestResult.Text = "No results — check the Brave key (or there is no network).";
-            }
-            else
-            {
-                TestResult.Foreground = System.Windows.Media.Brushes.MediumAquamarine;
-                TestResult.Text = $"OK · {results.Count} results · {sw.ElapsedMilliseconds} ms · first: {results[0].Title}";
-            }
-        }
-        catch (Exception ex)
-        {
-            TestResult.Foreground = System.Windows.Media.Brushes.OrangeRed;
-            TestResult.Text = "Error: " + ex.Message;
-        }
-        finally
-        {
-            TestWebButton.IsEnabled = true;
-        }
     }
 
     private async void OnTestClick(object sender, RoutedEventArgs e)

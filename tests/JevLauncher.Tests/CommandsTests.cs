@@ -72,14 +72,6 @@ public class CommandsTests
             Assert.StartsWith("https://", command.HomeUrl);
     }
 
-    [Fact]
-    public void Web_command_uses_the_web_results_scope()
-    {
-        var web = CommandParser.Resolve("web")!;
-        Assert.Equal(CommandScope.WebResults, web.Scope);
-        Assert.Contains("{0}", web.UrlTemplate); // browser fallback
-    }
-
     [Theory]
     [InlineData("search")]
     [InlineData("s")]

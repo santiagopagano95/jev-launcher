@@ -48,6 +48,15 @@ public class CommandEngineTests
     }
 
     [Fact]
+    public void Web_command_opens_google()
+    {
+        var (engine, _, _) = New();
+        var rows = engine.Update("/web typesafe ai");
+        Assert.Equal(CandidateKind.OpenUrl, rows[0].Candidate.Kind);
+        Assert.Equal("https://www.google.com/search?q=typesafe%20ai", rows[0].Candidate.Target);
+    }
+
+    [Fact]
     public void Slash_alone_opens_the_palette()
     {
         var (engine, _, _) = New();

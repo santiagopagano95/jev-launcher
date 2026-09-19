@@ -11,7 +11,6 @@ public sealed class Settings
     public const string DefaultSearchTemplate = "https://www.google.com/search?q={0}";
 
     public string? EncryptedApiKey { get; set; }
-    public string? EncryptedBraveKey { get; set; }
     public string HotKey { get; set; } = JevLauncher.App.HotKey.Default;
     public string SearchTemplate { get; set; } = DefaultSearchTemplate;
     public List<Snippet> Snippets { get; set; } = new();
@@ -53,14 +52,6 @@ public sealed class Settings
     }
 
     public void SetApiKey(string? key) => EncryptedApiKey = Protect(key);
-
-    public string? GetBraveApiKey()
-    {
-        var env = Environment.GetEnvironmentVariable("BRAVE_API_KEY");
-        return !string.IsNullOrWhiteSpace(env) ? env : Unprotect(EncryptedBraveKey);
-    }
-
-    public void SetBraveApiKey(string? key) => EncryptedBraveKey = Protect(key);
 
     private static string? Protect(string? value)
     {
