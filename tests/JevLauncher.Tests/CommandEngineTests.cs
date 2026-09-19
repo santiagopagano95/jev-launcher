@@ -167,6 +167,22 @@ public class CommandEngineTests
     }
 
     [Fact]
+    public async Task Conclusive_local_match_skips_jev()
+    {
+        var (engine, jev, _) = New();
+        await engine.UpdateAsync("budget.pdf");
+        Assert.Equal(0, jev.Calls);
+    }
+
+    [Fact]
+    public async Task Weak_local_match_asks_jev()
+    {
+        var (engine, jev, _) = New();
+        await engine.UpdateAsync("something odd");
+        Assert.Equal(1, jev.Calls);
+    }
+
+    [Fact]
     public async Task Find_command_uses_the_global_file_provider()
     {
         var (engine, _, services) = New();

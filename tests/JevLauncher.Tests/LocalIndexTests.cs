@@ -12,6 +12,16 @@ public class LocalIndexTests
     }
 
     [Fact]
+    public void Custom_folders_replace_the_defaults()
+    {
+        var root = AppContext.BaseDirectory;
+        var files = LocalIndex.Files(new[] { root }).ToList();
+
+        Assert.NotEmpty(files);
+        Assert.All(files, f => Assert.StartsWith(root, f.Target));
+    }
+
+    [Fact]
     public void File_candidate_includes_recency_detail()
     {
         var age = DateTime.Now.AddMinutes(-16);

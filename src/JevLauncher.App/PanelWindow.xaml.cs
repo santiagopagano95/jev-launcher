@@ -846,6 +846,9 @@ public partial class PanelWindow : Window
         ExitActionMode();
         report.AppendLine($"actions exited => {_rows.Count} rows restored");
 
+        RunAppAction("action:stats");
+        report.AppendLine($"stats => {_rows.Count} rows, first '{(_rows.Count > 0 ? _rows[0].Title : "")}'");
+
         return report.ToString();
     }
 }
