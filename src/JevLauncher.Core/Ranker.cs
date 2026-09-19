@@ -5,8 +5,14 @@ public static class Ranker
     private const double TargetWeight = 0.65;
     private const double ActionWeight = 0.20;
     private const double FuzzyWeight = 0.15;
+    private const double UsageWeight = 0.12;
 
-    public static IReadOnlyList<ScoredCandidate> Rank(IReadOnlyList<Candidate> candidates, JevResponse? response)
+    /// <summary>An exact local match must not be overturned by Jev.</summary>
+    private const double ExactGuard = 0.75;
+    private const double PrefixGuard = 0.55;
+
+    public static IReadOnlyList<ScoredCandidate> Rank(IReadOnlyList<Candidate> candidates, JevResponse? response,
+        UsageStats? usage = null)
     {
         var maxFuzzy = candidates.Count == 0 ? 1 : Math.Max(1, candidates.Max(c => c.Fuzzy));
 
@@ -21,6 +27,11 @@ public static class Ranker
             var score = response is null
                 ? fuzzyNorm
                 : TargetWeight * pTarget + ActionWeight * actionMatch + FuzzyWeight * fuzzyNorm;
+
+            score += UsageWeight * (usage?.Boost(c.Id) ?? 0);
+
+            var guard = c.Fuzzy >= 100 ? ExactGuard : c.Fuzzy >= 80 ? PrefixGuard : 0;
+            if (guard > score) score = guard;
 
             return new ScoredCandidate(c, score, pTarget, false);
         })

@@ -11,7 +11,7 @@ public static class LocalIndex
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
     };
 
-    public static IReadOnlyList<Candidate> Build()
+    public static IReadOnlyList<Candidate> Build(IReadOnlyList<string>? indexFolders = null)
     {
         var list = new List<Candidate>();
         list.AddRange(SystemToggles.BuildCandidates());
@@ -19,7 +19,7 @@ public static class LocalIndex
         var startMenuApps = StartMenuApps().ToList();
         list.AddRange(startMenuApps);
         list.AddRange(StoreApps.ToCandidates(StoreApps.Enumerate(), startMenuApps.Select(a => a.Title)));
-        list.AddRange(Files());
+        list.AddRange(Files(indexFolders));
         return list;
     }
 
@@ -58,10 +58,12 @@ public static class LocalIndex
         return new Candidate($"app:{path}", CandidateKind.OpenApp, title, "Application", title, path);
     }
 
-    public static IEnumerable<Candidate> Files()
+    public static IEnumerable<Candidate> Files(IReadOnlyList<string>? folders = null)
     {
+        var roots = folders is { Count: > 0 } ? folders : IndexedFolders;
+
         var entries = new List<(string Path, DateTime Modified)>();
-        foreach (var folder in IndexedFolders.Where(Directory.Exists))
+        foreach (var folder in roots.Where(Directory.Exists))
             CollectFiles(folder, 0, entries);
 
         return entries

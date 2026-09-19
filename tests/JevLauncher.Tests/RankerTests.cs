@@ -45,4 +45,35 @@ public class RankerTests
         var unsure = new JevResponse("c0", new Dictionary<string, double> { ["c0"] = 0.5 }, "open_app", 0.3, 1, 0);
         Assert.False(Ranker.Rank(list, unsure)[0].IsTopReady);
     }
+
+    [Fact]
+    public void Usage_promotes_a_frequently_used_candidate()
+    {
+        var list = new[] { C("c0", CandidateKind.OpenApp, "a", 50), C("c1", CandidateKind.OpenApp, "b", 50) };
+        var usage = new UsageStats();
+        usage.Record("c1");
+        usage.Record("c1");
+        usage.Record("c1");
+
+        var ranked = Ranker.Rank(list, null, usage);
+
+        Assert.Equal("c1", ranked[0].Candidate.Id);
+    }
+
+    [Fact]
+    public void Exact_local_match_is_not_overturned_by_jev()
+    {
+        var list = new[]
+        {
+            C("app", CandidateKind.OpenApp, "LOGI", 100),
+            C("file", CandidateKind.OpenFile, "logi-v4.desktop", 80),
+        };
+        var response = new JevResponse("file",
+            new Dictionary<string, double> { ["file"] = 0.57, ["app"] = 0.31 },
+            "open_file", 0.5, 1, 0);
+
+        var ranked = Ranker.Rank(list, response);
+
+        Assert.Equal("app", ranked[0].Candidate.Id);
+    }
 }

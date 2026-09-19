@@ -4,6 +4,7 @@ public enum CommandScope
 {
     Web,
     Files,
+    GlobalFiles,
     Apps,
     Toggles,
     Recent,
@@ -103,6 +104,7 @@ public static class Commands
 
         // Local scopes
         new LauncherCommand("file", "Find files", "Only local files", Array.Empty<string>(), CommandScope.Files),
+        new LauncherCommand("find", "Find anywhere", "Search all of Windows", new[] { "ff" }, CommandScope.GlobalFiles),
         new LauncherCommand("app", "Find apps", "Only installed apps", Array.Empty<string>(), CommandScope.Apps),
         new LauncherCommand("toggle", "System toggles", "Dark mode, wifi, sleep…", new[] { "toggles" }, CommandScope.Toggles),
         new LauncherCommand("recent", "Recent files", "Newest local files", Array.Empty<string>(), CommandScope.Recent),
@@ -124,6 +126,8 @@ public static class Commands
         new LauncherCommand("settings", "Settings", "API key, hotkey, search template", Array.Empty<string>(), CommandScope.AppAction),
         new LauncherCommand("quit", "Quit Launcher", "Exit Jev Launcher", Array.Empty<string>(), CommandScope.AppAction),
         new LauncherCommand("help", "Help", "List every command", new[] { "?" }, CommandScope.AppAction),
+        new LauncherCommand("stats", "Stats", "Latency, cost and most used", Array.Empty<string>(), CommandScope.AppAction),
+        new LauncherCommand("reindex", "Reindex", "Rebuild the local index", Array.Empty<string>(), CommandScope.AppAction),
     };
 }
 

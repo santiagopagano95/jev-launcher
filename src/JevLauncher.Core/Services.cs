@@ -111,4 +111,6 @@ public sealed class LauncherServices
     public NotesStore? Notes { get; set; }
     public Func<IReadOnlyList<Candidate>>? Windows { get; set; }
     public Func<string, bool>? IsProtocolRegistered { get; set; }
+    public UsageStats Usage { get; set; } = new();
+    public Func<string, CancellationToken, Task<IReadOnlyList<Candidate>>>? GlobalFiles { get; set; }
 }

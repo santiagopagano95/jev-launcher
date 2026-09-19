@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 
 namespace JevLauncher.Core;
 
@@ -44,5 +45,23 @@ public static class Executor
             FileName = target,
             UseShellExecute = true,
         });
+    }
+
+    public static void OpenContainingFolder(string path)
+    {
+        var folder = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(folder)) ShellExecute(folder);
+    }
+
+    public static void RevealInExplorer(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            ShellExecute(path);
+            return;
+        }
+
+        if (File.Exists(path))
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
     }
 }

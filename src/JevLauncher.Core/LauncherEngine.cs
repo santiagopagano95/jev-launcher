@@ -35,7 +35,45 @@ public sealed class LauncherEngine
     public void SetIndex(IReadOnlyList<Candidate> index) => _index = index;
 
     private IReadOnlyList<ScoredCandidate> ResolveCommand(string query) =>
-        Ranker.Rank(ResolveCommandCandidates(query), null);
+        Ranker.Rank(ResolveCommandCandidates(query), null, _services.Usage);
+
+    private readonly Dictionary<string, IReadOnlyList<Candidate>> _findCache = new();
+
+    private async Task<IReadOnlyList<ScoredCandidate>> ResolveCommandAsync(string query)
+    {
+        var (name, argument) = CommandParser.Split(query);
+        var command = CommandParser.Resolve(name);
+
+        if (command?.Scope == CommandScope.GlobalFiles &&
+            !string.IsNullOrWhiteSpace(argument) &&
+            _services.GlobalFiles is not null)
+        {
+            var seq = Interlocked.Increment(ref _sequence);
+
+            if (!_findCache.TryGetValue(argument, out var results))
+            {
+                results = await _services.GlobalFiles(argument, CancellationToken.None).ConfigureAwait(false);
+                if (_findCache.Count >= 20) _findCache.Clear();
+                _findCache[argument] = results;
+            }
+
+            if (seq < _applied)
+            {
+                LastWasStale = true;
+                return Ranker.Rank(ResolveCommandCandidates(query), null, _services.Usage);
+            }
+
+            _applied = seq;
+            LastWasStale = false;
+
+            if (_lastQuery != query)
+                return Ranker.Rank(ResolveCommandCandidates(query), null, _services.Usage);
+
+            return Ranker.Rank(results, null, _services.Usage);
+        }
+
+        return ResolveCommand(query);
+    }
 
     private IReadOnlyList<Candidate> ResolveCommandCandidates(string query)
     {
@@ -70,6 +108,8 @@ public sealed class LauncherEngine
             }
             case CommandScope.Files:
                 return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenFile);
+            case CommandScope.GlobalFiles:
+                return Array.Empty<Candidate>();
             case CommandScope.Apps:
                 return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenApp);
             case CommandScope.Toggles:
@@ -151,23 +191,41 @@ public sealed class LauncherEngine
         if (string.IsNullOrWhiteSpace(query)) return Array.Empty<ScoredCandidate>();
         if (CommandParser.IsCommand(query)) return ResolveCommand(query);
         var candidates = Prefilter.BuildCandidates(query, _index, 15);
-        return Ranker.Rank(candidates, _last);
+        return Ranker.Rank(candidates, _last, _services.Usage);
     }
 
     public async Task<IReadOnlyList<ScoredCandidate>> UpdateAsync(string query)
     {
         _lastQuery = query;
         if (string.IsNullOrWhiteSpace(query)) return Array.Empty<ScoredCandidate>();
-        if (CommandParser.IsCommand(query)) return ResolveCommand(query);
+        if (CommandParser.IsCommand(query)) return await ResolveCommandAsync(query).ConfigureAwait(false);
 
         var candidates = Prefilter.BuildCandidates(query, _index, 15);
-        var local = Ranker.Rank(candidates, _last);
+        var local = Ranker.Rank(candidates, _last, _services.Usage);
+
+        // Local match already conclusive: skip the network round trip.
+        if (!NeedsJev(candidates))
+        {
+            LastWasStale = false;
+            return Ranker.Rank(candidates, null, _services.Usage);
+        }
 
         var seq = Interlocked.Increment(ref _sequence);
-        var conversation = new Conversation(candidates, _context());
-        var started = Environment.TickCount64;
-        var response = await _jev.QueryAsync(query, conversation).ConfigureAwait(false);
-        var elapsed = Environment.TickCount64 - started;
+
+        var cached = _jevCache.TryGetValue(query, out var cachedResponse);
+        var response = cachedResponse;
+        long elapsed = 0;
+
+        if (!cached)
+        {
+            var conversation = new Conversation(candidates, _context());
+            var started = Environment.TickCount64;
+            response = await _jev.QueryAsync(query, conversation).ConfigureAwait(false);
+            elapsed = Environment.TickCount64 - started;
+
+            if (_jevCache.Count >= 20) _jevCache.Clear();
+            _jevCache[query] = response;
+        }
 
         if (seq < _applied)
         {
@@ -181,10 +239,27 @@ public sealed class LauncherEngine
         if (response is not null)
         {
             _last = response;
-            _stats.Record(elapsed, response.InputTokens);
+            if (!cached) _stats.Record(elapsed, response.InputTokens);
         }
 
         if (_lastQuery != query) return local;
-        return Ranker.Rank(candidates, _last);
+        return Ranker.Rank(candidates, _last, _services.Usage);
+    }
+
+    private readonly Dictionary<string, JevResponse?> _jevCache = new();
+
+    /// <summary>Whether the local match is weak enough that Jev can add value.</summary>
+    private static bool NeedsJev(IReadOnlyList<Candidate> candidates)
+    {
+        if (candidates.Count == 0) return false;
+
+        var best = candidates[0].Fuzzy;
+        if (best >= 100) return false;
+        if (best >= 90)
+        {
+            var second = candidates.Count > 1 ? candidates[1].Fuzzy : 0;
+            if (second < best * 0.6) return false;
+        }
+        return true;
     }
 }

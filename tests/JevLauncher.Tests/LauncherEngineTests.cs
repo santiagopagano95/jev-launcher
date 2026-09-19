@@ -50,13 +50,13 @@ public class LauncherEngineTests
         var jev = new FakeJev();
         var engine = NewEngine(jev);
 
-        var t1 = engine.UpdateAsync("notes");
-        var t2 = engine.UpdateAsync("notesx");
+        var t1 = engine.UpdateAsync("n");
+        var t2 = engine.UpdateAsync("nx");
 
         // Resolve the newer request first; the older one must then be discarded.
-        jev.Gates["notesx"].SetResult(null);
+        jev.Gates["nx"].SetResult(null);
         await t2;
-        jev.Gates["notes"].SetResult(null);
+        jev.Gates["n"].SetResult(null);
         await t1;
 
         Assert.True(engine.LastWasStale);
