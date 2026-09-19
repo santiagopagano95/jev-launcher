@@ -75,6 +75,11 @@
     <CheckBox x:Name="StartWithWindowsBox" Content="Start with Windows" Margin="0,0,0,16"
               Foreground="{StaticResource TextSecondary}" FontFamily="{StaticResource UiFont}" />
 
+    <TextBlock Text="Indexed folders — one path per line (empty = Downloads, Desktop, Documents)"
+               Style="{StaticResource FieldLabel}" />
+    <TextBox x:Name="FoldersBox" Style="{StaticResource Field}" AcceptsReturn="True" Height="70"
+             VerticalScrollBarVisibility="Auto" Margin="0,0,0,16" />
+
     <TextBlock x:Name="TestResult" FontFamily="{StaticResource MonoFont}" FontSize="11"
                Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
 

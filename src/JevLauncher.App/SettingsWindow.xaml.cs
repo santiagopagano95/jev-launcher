@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
         SnippetsBox.Text = string.Join(Environment.NewLine,
             settings.Snippets.Select(s => $"{s.Name} = {s.Text}"));
         StartWithWindowsBox.IsChecked = settings.StartWithWindows;
+        FoldersBox.Text = string.Join(Environment.NewLine, settings.IndexFolders);
 
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TYPESAFE_API_KEY")))
             EnvNote.Text = "TYPESAFE_API_KEY is set in the environment and takes precedence over the stored key.";
@@ -49,8 +50,16 @@ public partial class SettingsWindow : Window
             : TemplateBox.Text;
         _settings.Snippets = ParseSnippets(SnippetsBox.Text);
         _settings.StartWithWindows = StartWithWindowsBox.IsChecked == true;
+        _settings.IndexFolders = ParseFolders(FoldersBox.Text);
         DialogResult = true;
     }
+
+    private static List<string> ParseFolders(string text) =>
+        text.Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static List<Snippet> ParseSnippets(string text)
     {

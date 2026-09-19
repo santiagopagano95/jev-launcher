@@ -38,6 +38,7 @@ public partial class PanelWindow : Window
     private string _flash = string.Empty;
     private bool _suppressHide;
     private bool _allowClose;
+    private Candidate? _actionSource;
     private int _indexBuildInFlight;
     private volatile bool _indexReady;
     private int _selected;
@@ -55,8 +56,9 @@ public partial class PanelWindow : Window
         _client = new JevClient(new HttpClient(), _settings.GetApiKey());
 
         _services.Snippets = _settings.Snippets;
-        _services.Notes = new NotesStore(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "notes.txt"));
+        _services.Usage = new UsageStats(Path.Combine(AppData.Directory, "usage.json"));
+        _services.GlobalFiles = (query, ct) => GlobalFileSearch.SearchAsync(query, 20, ct);
+        _services.Notes = new NotesStore(Path.Combine(AppData.Directory, "notes.txt"));
         _services.Windows = WindowList.Build;
 
         _engine = new LauncherEngine(
@@ -124,9 +126,9 @@ public partial class PanelWindow : Window
     {
         App.DebugLog("ShowPanel");
         _lastError = string.Empty;
-        var wa = SystemParameters.WorkArea;
-        Left = wa.Left + (wa.Width - Width) / 2;
-        Top = wa.Top + wa.Height * 0.2;
+        var area = MonitorWorkArea();
+        Left = area.Left + (area.Width - Width) / 2;
+        Top = area.Top + area.Height * 0.2;
 
         Show();
         Activate();
@@ -177,6 +179,7 @@ public partial class PanelWindow : Window
     private void OnQueryChanged(object sender, TextChangedEventArgs e)
     {
         _lastError = string.Empty;
+        _actionSource = null;
         RenderRows(_engine.Update(QueryBox.Text ?? string.Empty));
         _debounce.Stop();
         _debounce.Start();
@@ -221,8 +224,17 @@ public partial class PanelWindow : Window
         switch (e.Key)
         {
             case Key.Escape:
-                HidePanel();
+                if (_actionSource is not null) ExitActionMode();
+                else HidePanel();
                 e.Handled = true;
+                break;
+            case Key.K:
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+                {
+                    if (_actionSource is null) EnterActionMode();
+                    else ExitActionMode();
+                    e.Handled = true;
+                }
                 break;
             case Key.Down:
                 MoveSelection(1);
@@ -275,6 +287,12 @@ public partial class PanelWindow : Window
             return;
         }
 
+        if (candidate.Id.StartsWith("act:", StringComparison.Ordinal))
+        {
+            RunSecondaryAction(candidate.Id, candidate.Target ?? string.Empty);
+            return;
+        }
+
         if (candidate.Kind == CandidateKind.Command)
         {
             QueryBox.Text = candidate.Target ?? string.Empty;
@@ -282,6 +300,11 @@ public partial class PanelWindow : Window
             return;
         }
 
+        ExecuteCandidate(candidate);
+    }
+
+    private void ExecuteCandidate(Candidate candidate)
+    {
         if (candidate.Kind == CandidateKind.SaveNote)
         {
             _services.Notes?.Append(candidate.Target ?? string.Empty);
@@ -302,15 +325,12 @@ public partial class PanelWindow : Window
         try
         {
             if (candidate.Kind == CandidateKind.SystemToggle)
-            {
                 SystemToggles.Execute(candidate.Target ?? candidate.Id, msg => _lastError = msg);
-            }
             else
-            {
                 Executor.Launch(candidate, SetClipboard, _settings.SearchTemplate);
-            }
 
             if (candidate.Kind == CandidateKind.OpenApp) AddRecentApp(candidate.Title);
+            _services.Usage.Record(candidate.Id);
         }
         catch (Exception ex)
         {
@@ -321,6 +341,8 @@ public partial class PanelWindow : Window
             _suppressHide = false;
         }
 
+        _actionSource = null;
+
         if (string.IsNullOrEmpty(_lastError))
         {
             HidePanel();
@@ -330,6 +352,60 @@ public partial class PanelWindow : Window
             Notify("Could not open: " + _lastError);
             UpdateFooter();
         }
+    }
+
+    private void RunSecondaryAction(string id, string payload)
+    {
+        var original = _actionSource;
+
+        try
+        {
+            switch (id)
+            {
+                case "act:open":
+                    if (original is not null) ExecuteCandidate(original);
+                    return;
+                case "act:copy":
+                    SetClipboard(payload);
+                    Flash("Copied to clipboard");
+                    return;
+                case "act:folder":
+                    Executor.OpenContainingFolder(payload);
+                    break;
+                case "act:reveal":
+                    Executor.RevealInExplorer(payload);
+                    break;
+                case "act:web":
+                    Executor.Launch(
+                        new Candidate("web", CandidateKind.WebSearch, payload, string.Empty, string.Empty, payload),
+                        SetClipboard, _settings.SearchTemplate);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Notify("Action failed: " + ex.Message);
+            return;
+        }
+
+        _actionSource = null;
+        HidePanel();
+    }
+
+    private void EnterActionMode()
+    {
+        if (_selected < 0 || _selected >= _rows.Count) return;
+        var source = _rows[_selected].Candidate;
+        if (CommandCandidates.IsAppAction(source)) return;
+
+        _actionSource = source;
+        RenderRows(SecondaryActions.For(source).Select(c => new ScoredCandidate(c, 0, 0, false)).ToList());
+    }
+
+    private void ExitActionMode()
+    {
+        _actionSource = null;
+        RenderRows(_engine.Update(QueryBox.Text ?? string.Empty));
     }
 
     private const int WM_CLIPBOARDUPDATE = 0x031D;
@@ -434,7 +510,40 @@ public partial class PanelWindow : Window
                 QueryBox.CaretIndex = QueryBox.Text.Length;
                 RenderRows(_engine.Update("/"));
                 break;
+            case "action:stats":
+                ShowStats();
+                break;
+            case "action:reindex":
+                _indexReady = false;
+                _ = Task.Run(BuildIndex);
+                _flash = "Reindexing…";
+                HidePanel();
+                break;
         }
+    }
+
+    private void ShowStats()
+    {
+        var rows = new List<ScoredCandidate>();
+
+        void Add(string title, string value, string keywords)
+        {
+            var candidate = new Candidate("stat:" + title, CandidateKind.Copy, title, "Stats", keywords, value);
+            rows.Add(new ScoredCandidate(candidate, 0, 0, false));
+        }
+
+        Add("Last round trip", $"{_stats.LastMs:0} ms", "stats latency");
+        Add("p50", $"{_stats.P50:0} ms", "stats");
+        Add("p95", $"{_stats.P95:0} ms", "stats");
+        Add("Decisions", _stats.Decisions.ToString(), "stats");
+        Add("Input tokens", _stats.InputTokens.ToString("N0"), "stats tokens");
+        Add("Estimated cost", $"${_stats.EstimatedCost:0.00000}", "stats cost");
+
+        foreach (var pair in _services.Usage.Top(5))
+            Add("Most used", $"{pair.Value.Count}×  {pair.Key}", "stats usage");
+
+        QueryBox.Text = "/stats";
+        RenderRows(rows);
     }
 
     private static void SetClipboard(string text) => TrySetClipboard(text);
@@ -458,6 +567,48 @@ public partial class PanelWindow : Window
     }
 
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+
+    /// <summary>Work area of the monitor under the cursor, so the panel follows the active screen.</summary>
+    private static Rect MonitorWorkArea()
+    {
+        try
+        {
+            if (GetCursorPos(out var point))
+            {
+                var monitor = MonitorFromPoint(point, 2 /* MONITOR_DEFAULTTONEAREST */);
+                var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+                if (GetMonitorInfo(monitor, ref info))
+                    return new Rect(info.rcWork.Left, info.rcWork.Top,
+                        info.rcWork.Right - info.rcWork.Left, info.rcWork.Bottom - info.rcWork.Top);
+            }
+        }
+        catch
+        {
+            // fall through to the primary monitor
+        }
+
+        var area = SystemParameters.WorkArea;
+        return new Rect(area.Left, area.Top, area.Width, area.Height);
+    }
 
     private void AddRecentApp(string title)
     {
@@ -501,7 +652,7 @@ public partial class PanelWindow : Window
         if (Interlocked.Exchange(ref _indexBuildInFlight, 1) == 1) return;
         try
         {
-            var index = LocalIndex.Build();
+            var index = LocalIndex.Build(_settings.IndexFolders);
             _engine.SetIndex(index);
             _indexReady = true;
             Dispatcher.Invoke(() =>
@@ -546,7 +697,7 @@ public partial class PanelWindow : Window
                 bitmap.Render(root);
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-settings.png");
+                var png = System.IO.Path.Combine(Artifacts.Directory, "jev-settings.png");
                 using var stream = System.IO.File.Create(png);
                 encoder.Save(stream);
                 report.AppendLine($"settings png => {png} ({w}x{h})");
@@ -613,7 +764,7 @@ public partial class PanelWindow : Window
                 bitmap.Render(RootBorder);
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-panel.png");
+                var png = System.IO.Path.Combine(Artifacts.Directory, "jev-panel.png");
                 using var stream = System.IO.File.Create(png);
                 encoder.Save(stream);
                 report.AppendLine($"panel png => {png} ({width}x{height})");
@@ -640,7 +791,7 @@ public partial class PanelWindow : Window
             bitmap.Render(RootBorder);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-commands.png");
+            var png = System.IO.Path.Combine(Artifacts.Directory, "jev-commands.png");
             using var stream = System.IO.File.Create(png);
             encoder.Save(stream);
             report.AppendLine($"commands png => {png} ({width}x{height})");
@@ -661,7 +812,7 @@ public partial class PanelWindow : Window
             bitmap.Render(RootBorder);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            var png = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jev-utility.png");
+            var png = System.IO.Path.Combine(Artifacts.Directory, "jev-utility.png");
             using var stream = System.IO.File.Create(png);
             encoder.Save(stream);
             report.AppendLine($"utility png => {png} ({width}x{height})");
@@ -682,6 +833,19 @@ public partial class PanelWindow : Window
             report.AppendLine("open test => ExecuteSelected called");
         }
 
+        report.AppendLine($"global search => {GlobalFileSearch.Search("report", 5).Count} results for 'report'");
+
+        var area = MonitorWorkArea();
+        report.AppendLine($"panel work area => {area.Width:0}x{area.Height:0} at {area.Left:0},{area.Top:0}");
+
+        QueryBox.Text = "/app calculadora";
+        RenderRows(_engine.Update("/app calculadora"));
+        _selected = 0;
+        EnterActionMode();
+        report.AppendLine("actions => " + string.Join(" | ", _rows.Select(r => r.Title)));
+        ExitActionMode();
+        report.AppendLine($"actions exited => {_rows.Count} rows restored");
+
         return report.ToString();
     }
 }
@@ -694,6 +858,9 @@ public sealed class RowView : INotifyPropertyChanged
     {
         Source = source;
         _isSelected = selected;
+        Icon = source.Candidate.Kind == CandidateKind.OpenApp || source.Candidate.Kind == CandidateKind.OpenFile
+            ? IconProvider.Get(source.Candidate)
+            : null;
     }
 
     public ScoredCandidate Source { get; }
@@ -701,6 +868,9 @@ public sealed class RowView : INotifyPropertyChanged
     public string Title => Candidate.Title;
     public string Detail => Candidate.Detail;
     public string Glyph => GlyphFor(Candidate.Kind);
+    public ImageSource? Icon { get; }
+    public Visibility IconVisibility => Icon is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility GlyphVisibility => Icon is null ? Visibility.Visible : Visibility.Collapsed;
     public string KindLabel => Candidate.Kind == CandidateKind.Command
         ? string.Empty
         : JevQuestions.KindName(Candidate.Kind);

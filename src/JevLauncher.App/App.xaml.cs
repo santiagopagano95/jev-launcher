@@ -28,7 +28,8 @@ public partial class App : Application
     {
         try
         {
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "jevlauncher-crash.txt"), text);
+            System.IO.Directory.CreateDirectory(Artifacts.Directory);
+            File.WriteAllText(Path.Combine(Artifacts.Directory, "jevlauncher-crash.txt"), text);
         }
         catch
         {
@@ -43,7 +44,8 @@ public partial class App : Application
         if (!DebugToggle) return;
         try
         {
-            File.AppendAllText(Path.Combine(Path.GetTempPath(), "jev-toggle.log"),
+            System.IO.Directory.CreateDirectory(Artifacts.Directory);
+            File.AppendAllText(Path.Combine(Artifacts.Directory, "jev-toggle.log"),
                 $"{DateTime.Now:HH:mm:ss.fff} {text}{Environment.NewLine}");
         }
         catch
@@ -90,7 +92,8 @@ public partial class App : Application
                 var tray = TrayIcon.Attach(_panel!, static () => { }, static () => { }, static () => { });
                 report += $"tray icon => IsCreated={tray.IsCreated}{Environment.NewLine}";
                 tray.Dispose();
-                File.WriteAllText(Path.Combine(Path.GetTempPath(), "jev-smoke.txt"), report);
+                System.IO.Directory.CreateDirectory(Artifacts.Directory);
+                File.WriteAllText(Path.Combine(Artifacts.Directory, "jev-smoke.txt"), report);
                 _panel.PrepareForExit();
                 Shutdown();
             });

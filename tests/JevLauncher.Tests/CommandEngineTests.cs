@@ -167,6 +167,20 @@ public class CommandEngineTests
     }
 
     [Fact]
+    public async Task Find_command_uses_the_global_file_provider()
+    {
+        var (engine, _, services) = New();
+        services.GlobalFiles = (_, _) => Task.FromResult<IReadOnlyList<Candidate>>(new[]
+        {
+            new Candidate("g0", CandidateKind.OpenFile, "report.pdf", "PDF", "report", @"C:\x\report.pdf"),
+        });
+
+        var rows = await engine.UpdateAsync("/find report");
+
+        Assert.Contains(rows, r => r.Candidate.Id == "g0");
+    }
+
+    [Fact]
     public async Task Command_queries_do_not_call_jev()
     {
         var (engine, jev, _) = New();

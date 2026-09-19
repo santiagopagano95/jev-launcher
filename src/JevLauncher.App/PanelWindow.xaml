@@ -39,10 +39,13 @@
                 </Grid.ColumnDefinitions>
                 <Border x:Name="AccentBar" Grid.Column="0" Width="3" CornerRadius="2"
                         Background="{StaticResource AccentGradient}" Opacity="0"/>
-                <TextBlock Grid.Column="1" Text="{Binding Glyph}"
-                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                           FontSize="16" Foreground="{StaticResource TextSecondary}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                  <Image Source="{Binding Icon}" Width="18" Height="18"
+                         Visibility="{Binding IconVisibility}" />
+                  <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                             FontSize="16" Foreground="{StaticResource TextSecondary}"
+                             HorizontalAlignment="Center" Visibility="{Binding GlyphVisibility}" />
+                </Grid>
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                   <TextBlock Text="{Binding Title}" FontFamily="{StaticResource UiFont}"
                              Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>

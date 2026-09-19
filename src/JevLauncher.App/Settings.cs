@@ -15,9 +15,9 @@ public sealed class Settings
     public string SearchTemplate { get; set; } = DefaultSearchTemplate;
     public List<Snippet> Snippets { get; set; } = new();
     public bool StartWithWindows { get; set; } = true;
+    public List<string> IndexFolders { get; set; } = new();
 
-    public static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JevLauncher", "settings.json");
+    public static string FilePath => Path.Combine(AppData.Directory, "settings.json");
 
     public static Settings Load()
     {
