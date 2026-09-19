@@ -48,11 +48,26 @@ public sealed class LauncherEngine
         switch (command.Scope)
         {
             case CommandScope.Web:
+            {
+                var useDesktopApp = command.Scheme is not null &&
+                                    (_services.IsProtocolRegistered ?? Protocols.IsRegistered)(command.Scheme);
+
                 if (!string.IsNullOrWhiteSpace(argument))
-                    return new List<Candidate> { CommandCandidates.Web(command, argument) };
+                    return new List<Candidate>
+                    {
+                        useDesktopApp
+                            ? CommandCandidates.DesktopSearch(command, argument)
+                            : CommandCandidates.Web(command, argument),
+                    };
+
+                if (useDesktopApp && !string.IsNullOrWhiteSpace(command.DesktopHome))
+                    return new List<Candidate> { CommandCandidates.DesktopHome(command) };
+
                 if (!string.IsNullOrWhiteSpace(command.HomeUrl))
                     return new List<Candidate> { CommandCandidates.Home(command) };
+
                 return new List<Candidate> { CommandCandidates.ToPaletteRow(command) };
+            }
             case CommandScope.Files:
                 return Prefilter.BuildCandidates(argument, _index, 15, CandidateKind.OpenFile);
             case CommandScope.Apps:

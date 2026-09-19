@@ -110,4 +110,5 @@ public sealed class LauncherServices
     public ClipboardHistory Clipboard { get; } = new();
     public NotesStore? Notes { get; set; }
     public Func<IReadOnlyList<Candidate>>? Windows { get; set; }
+    public Func<string, bool>? IsProtocolRegistered { get; set; }
 }

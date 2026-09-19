@@ -24,11 +24,25 @@ public sealed record LauncherCommand(
     IReadOnlyList<string> Aliases,
     CommandScope Scope,
     string? UrlTemplate = null,
-    string? HomeUrl = null)
+    string? HomeUrl = null,
+    string? DesktopUri = null,
+    string? DesktopHome = null)
 {
     public string InsertText => "/" + Id + " ";
 
     public string Keywords => string.Join(' ', new[] { Id, Title, Description }.Concat(Aliases));
+
+    /// <summary>URI scheme of the desktop handler, if this command has one.</summary>
+    public string? Scheme
+    {
+        get
+        {
+            var uri = DesktopUri ?? DesktopHome;
+            if (string.IsNullOrEmpty(uri)) return null;
+            var colon = uri.IndexOf(':');
+            return colon <= 0 ? null : uri[..colon];
+        }
+    }
 }
 
 public static class Commands
@@ -75,7 +89,7 @@ public static class Commands
 
         // Streaming and services
         new LauncherCommand("spotify", "Spotify", "Search music", Array.Empty<string>(), CommandScope.Web,
-            "https://open.spotify.com/search/{0}", "https://open.spotify.com"),
+            "https://open.spotify.com/search/{0}", "https://open.spotify.com", "spotify:search:{0}", "spotify:"),
         new LauncherCommand("netflix", "Netflix", "Search shows", Array.Empty<string>(), CommandScope.Web,
             "https://www.netflix.com/search?q={0}", "https://www.netflix.com"),
         new LauncherCommand("ytmusic", "YouTube Music", "Search music", new[] { "music" }, CommandScope.Web,

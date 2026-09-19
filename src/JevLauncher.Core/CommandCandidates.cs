@@ -32,6 +32,16 @@ public static class CommandCandidates
             $"Open {command.Title}", "Opens your default browser",
             command.Keywords, command.HomeUrl);
 
+    public static Candidate DesktopSearch(LauncherCommand command, string argument) =>
+        new("url:" + command.Id, CandidateKind.OpenUrl,
+            $"Search {command.Title} in the app", "Opens the desktop app",
+            command.Keywords, string.Format(command.DesktopUri!, Uri.EscapeDataString(argument)));
+
+    public static Candidate DesktopHome(LauncherCommand command) =>
+        new("url:" + command.Id, CandidateKind.OpenUrl,
+            $"Open {command.Title}", "Opens the desktop app",
+            command.Keywords, command.DesktopHome);
+
     public static Candidate AppAction(LauncherCommand command) =>
         new("app:" + command.Id, CandidateKind.Command, command.Title, command.Description,
             command.Keywords, command.InsertText);
