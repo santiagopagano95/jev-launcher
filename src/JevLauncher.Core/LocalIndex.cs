@@ -35,8 +35,22 @@ public static class LocalIndex
         }
     }
 
-    public static Candidate AppCandidateFromShortcut(string fileName, string path)
+    private static readonly HashSet<string> BlockedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
+        ".desktop", ".lnk", ".url", ".tmp", ".ini", ".crdownload", ".part",
+    };
+
+    /// <summary>Files Windows cannot open (or that only add noise) are not indexed.</summary>
+    public static bool IsIndexableFile(string path)
+    {
+        var name = Path.GetFileName(path);
+        if (string.IsNullOrEmpty(name)) return false;
+        if (name.StartsWith("~$", StringComparison.Ordinal)) return false;
+
+        return !BlockedExtensions.Contains(Path.GetExtension(name));
+    }
+
+    public static Candidate AppCandidateFromShortcut(string fileName, string path)    {
         var title = Path.GetFileNameWithoutExtension(fileName);
         return new Candidate($"app:{path}", CandidateKind.OpenApp, title, "Application", title, path);
     }
@@ -66,6 +80,8 @@ public static class LocalIndex
 
         foreach (var file in files)
         {
+            if (!IsIndexableFile(file)) continue;
+
             DateTime modified;
             try { modified = File.GetLastWriteTime(file); }
             catch { continue; }

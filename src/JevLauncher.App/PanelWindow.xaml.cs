@@ -305,8 +305,15 @@ public partial class PanelWindow : Window
             _suppressHide = false;
         }
 
-        if (string.IsNullOrEmpty(_lastError)) HidePanel();
-        else UpdateFooter();
+        if (string.IsNullOrEmpty(_lastError))
+        {
+            HidePanel();
+        }
+        else
+        {
+            Notify("Could not open: " + _lastError);
+            UpdateFooter();
+        }
     }
 
     private const int WM_CLIPBOARDUPDATE = 0x031D;

@@ -20,4 +20,26 @@ public class LocalIndexTests
         Assert.Contains("PDF", c.Detail);
         Assert.Equal(CandidateKind.OpenFile, c.Kind);
     }
+
+    [Theory]
+    [InlineData(@"C:\x\logi-v4.desktop")]
+    [InlineData(@"C:\x\Shortcut.lnk")]
+    [InlineData(@"C:\x\site.url")]
+    [InlineData(@"C:\x\download.crdownload")]
+    [InlineData(@"C:\x\setup.tmp")]
+    [InlineData(@"C:\x\settings.ini")]
+    [InlineData(@"C:\x\~$budget.xlsx")]
+    public void Skips_files_windows_cannot_open(string path)
+    {
+        Assert.False(LocalIndex.IsIndexableFile(path));
+    }
+
+    [Theory]
+    [InlineData(@"C:\x\budget.pdf")]
+    [InlineData(@"C:\x\notes.txt")]
+    [InlineData(@"C:\x\tracker.xlsx")]
+    public void Keeps_normal_documents(string path)
+    {
+        Assert.True(LocalIndex.IsIndexableFile(path));
+    }
 }
