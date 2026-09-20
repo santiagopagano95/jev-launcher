@@ -39,6 +39,7 @@ public partial class PanelWindow : Window
     private bool _suppressHide;
     private bool _allowClose;
     private Candidate? _actionSource;
+    private string? _lastClipboardText;
     private int _indexBuildInFlight;
     private volatile bool _indexReady;
     private int _selected;
@@ -416,7 +417,16 @@ public partial class PanelWindow : Window
         {
             try
             {
-                if (Clipboard.ContainsText()) _services.Clipboard.Push(Clipboard.GetText());
+                if (Clipboard.ContainsText())
+                {
+                    var text = Clipboard.GetText();
+                    if (text != _lastClipboardText)
+                    {
+                        _lastClipboardText = text;
+                        _services.Clipboard.Push(text);
+                        App.DebugLog($"clipboard captured: {text.ReplaceLineEndings(" ")[..Math.Min(40, text.ReplaceLineEndings(" ").Length)]}");
+                    }
+                }
             }
             catch
             {
@@ -848,6 +858,18 @@ public partial class PanelWindow : Window
 
         RunAppAction("action:stats");
         report.AppendLine($"stats => {_rows.Count} rows, first '{(_rows.Count > 0 ? _rows[0].Title : "")}'");
+
+        try
+        {
+            SetClipboard("clipboard smoke test");
+            await Task.Delay(600);
+            RenderRows(_engine.Update("/clip"));
+            report.AppendLine("clip test => " + (_rows.Count > 0 ? _rows[0].Title : "none"));
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("clip test failed => " + ex.Message);
+        }
 
         return report.ToString();
     }
