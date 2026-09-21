@@ -18,4 +18,16 @@ public static class Artifacts
         Environment.GetEnvironmentVariable("JEV_ARTIFACTS") is { Length: > 0 } custom
             ? custom
             : Path.Combine(AppContext.BaseDirectory, "artifacts");
+
+    public static void Ensure()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(Directory);
+        }
+        catch
+        {
+            // best effort
+        }
+    }
 }

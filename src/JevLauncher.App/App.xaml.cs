@@ -92,7 +92,7 @@ public partial class App : Application
                 var tray = TrayIcon.Attach(_panel!, static () => { }, static () => { }, static () => { });
                 report += $"tray icon => IsCreated={tray.IsCreated}{Environment.NewLine}";
                 tray.Dispose();
-                System.IO.Directory.CreateDirectory(Artifacts.Directory);
+                Artifacts.Ensure();
                 File.WriteAllText(Path.Combine(Artifacts.Directory, "jev-smoke.txt"), report);
                 _panel.PrepareForExit();
                 Shutdown();

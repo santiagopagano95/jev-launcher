@@ -6,3 +6,5 @@ build/
 artifacts/
 .data/
 publish/
+installer/dist/
+installer/test/

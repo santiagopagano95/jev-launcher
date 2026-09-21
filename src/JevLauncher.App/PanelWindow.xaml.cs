@@ -682,6 +682,7 @@ public partial class PanelWindow : Window
 
     public async Task<string> RunSmokeAsync()
     {
+        Artifacts.Ensure();
         ShowPanel();
         for (var i = 0; i < 150 && !_indexReady; i++)
             await Task.Delay(100);
@@ -743,8 +744,12 @@ public partial class PanelWindow : Window
             report.AppendLine("15+2 run => skipped (top was not a calculator)");
         }
 
-        string after;
-        try { after = Clipboard.GetText(); } catch (Exception ex) { after = "<" + ex.Message + ">"; }
+        string after = "<not read>";
+        for (var attempt = 0; attempt < 5 && after != "17"; attempt++)
+        {
+            try { after = Clipboard.GetText(); } catch (Exception ex) { after = "<" + ex.GetType().Name + ">"; }
+            if (after != "17") await Task.Delay(120);
+        }
         report.AppendLine("15+2 run => clipboard: " + after);
 
         Probe("/yt lofi beats");
