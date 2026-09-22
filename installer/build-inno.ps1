@@ -8,17 +8,14 @@ $ErrorActionPreference = 'Stop'
 
 $payload = Join-Path $PSScriptRoot 'inno-payload'
 
-if (-not (Test-Path $Iscc)) {
-    throw "No encontre ISCC.exe en '$Iscc'. Instala Inno Setup 6 (winget install JRSoftware.InnoSetup)."
-}
-
-Remove-Item $payload -Recurse -Force -ErrorAction SilentlyContinue
+Assert-JevIscc -Iscc $Iscc | Out-Null
+Remove-JevDir $payload
 New-Item -ItemType Directory -Force -Path $payload | Out-Null
 
 Invoke-JevPublish -Output $payload -Version $Version
 
-& $Iscc "/DMyAppVersion=$Version" (Join-Path $PSScriptRoot 'inno\JevLauncher.iss')
-if ($LASTEXITCODE -ne 0) { throw "ISCC fallo con codigo $LASTEXITCODE" }
+Invoke-JevInnoSetup -Version $Version -Iscc $Iscc
 
 $setup = Join-Path $PSScriptRoot "dist\JevLauncher-Setup-$Version.exe"
+if (-not (Test-Path $setup)) { throw "ISCC no genero $setup" }
 Write-Host "Instalador generado: $setup"

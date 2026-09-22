@@ -8,12 +8,12 @@ $ErrorActionPreference = 'Stop'
 
 $stage = Join-Path $Output 'JevLauncher'
 
-Remove-Item $Output -Recurse -Force -ErrorAction SilentlyContinue
+Remove-JevDir $Output
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app') | Out-Null
 
 Invoke-JevPublish -Output (Join-Path $stage 'app') -Version $Version
 
-foreach ($file in 'install.ps1', 'uninstall.ps1', 'install.cmd', 'uninstall.cmd', 'README.txt') {
+foreach ($file in Get-JevInstallerFiles) {
     Copy-Item (Join-Path $PSScriptRoot $file) $stage -Force
 }
 
