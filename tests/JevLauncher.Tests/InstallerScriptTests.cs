@@ -57,10 +57,20 @@ public class InstallerScriptTests
     private static (int ExitCode, string Output) Run(ProcessStartInfo psi)
     {
         using var process = Process.Start(psi)!;
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit(120_000);
-        return (process.ExitCode, stdout + stderr);
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(120_000))
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            throw new TimeoutException("powershell.exe no termino en 120 segundos.");
+        }
+        var output = stdout.GetAwaiter().GetResult() + Environment.NewLine + stderr.GetAwaiter().GetResult();
+        return (process.ExitCode, output);
+    }
+
+    private static void TryDelete(string dir)
+    {
+        try { Directory.Delete(dir, true); } catch { /* best effort */ }
     }
 
     [Theory]
@@ -73,10 +83,10 @@ public class InstallerScriptTests
         var command =
             "$errors=$null;$tokens=$null;" +
             $"$ast=[System.Management.Automation.Language.Parser]::ParseFile('{path}',[ref]$tokens,[ref]$errors);" +
-            "($ast.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath }) -join ','";
+            "($ast.ParamBlock.Parameters | ForEach-Object { \"$($_.Name.VariablePath.UserPath)=$($_.StaticType.Name)\" }) -join ','";
         var (code, output) = RunPowerShellCommand(command);
         Assert.True(code == 0, $"PowerShell salio con {code}: {output}");
-        Assert.Contains("SkipProcessKill", output, StringComparison.Ordinal);
+        Assert.Contains("SkipProcessKill=SwitchParameter", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -102,7 +112,45 @@ public class InstallerScriptTests
         }
         finally
         {
-            Directory.Delete(sandbox, true);
+            TryDelete(sandbox);
+        }
+    }
+
+    [Fact]
+    public void Install_SkipProcessKill_LeavesRunningAppAlive()
+    {
+        var repo = FindRepoRoot();
+        var sandbox = NewSandbox();
+        Process? sentinel = null;
+        try
+        {
+            var sentinelExe = Path.Combine(sandbox, "JevLauncher.App.exe");
+            File.Copy(Path.Combine(Environment.SystemDirectory, "ping.exe"), sentinelExe);
+            sentinel = Process.Start(new ProcessStartInfo(sentinelExe, "-n 60 127.0.0.1")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            Assert.NotNull(sentinel);
+            Thread.Sleep(700);
+
+            var pkg = Path.Combine(sandbox, "pkg");
+            Directory.CreateDirectory(Path.Combine(pkg, "app"));
+            File.WriteAllText(Path.Combine(pkg, "app", "JevLauncher.App.exe"), "dummy");
+            File.Copy(Path.Combine(repo, "installer", "install.ps1"), Path.Combine(pkg, "install.ps1"));
+            File.Copy(Path.Combine(repo, "installer", "uninstall.ps1"), Path.Combine(pkg, "uninstall.ps1"));
+
+            var (code, output) = RunPowerShell(Path.Combine(pkg, "install.ps1"),
+                "-InstallDir", Path.Combine(sandbox, "installed"), "-SkipProcessKill", "-SkipShortcut", "-SkipRegistry", "-NoLaunch");
+
+            Assert.True(code == 0, $"install.ps1 salio con {code}: {output}");
+            sentinel.Refresh();
+            Assert.False(sentinel.HasExited, "install.ps1 con -SkipProcessKill mato una app JevLauncher.App en ejecucion");
+        }
+        finally
+        {
+            try { if (sentinel is { HasExited: false }) { sentinel.Kill(); sentinel.WaitForExit(5000); } } catch { /* best effort */ }
+            TryDelete(sandbox);
         }
     }
 
@@ -126,7 +174,7 @@ public class InstallerScriptTests
         }
         finally
         {
-            Directory.Delete(sandbox, true);
+            TryDelete(sandbox);
         }
     }
 
@@ -145,11 +193,11 @@ public class InstallerScriptTests
                 "-InstallDir", Path.Combine(sandbox, "installed"), "-SkipProcessKill", "-SkipShortcut", "-SkipRegistry", "-NoLaunch");
 
             Assert.NotEqual(0, code);
-            Assert.Contains("app", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("carpeta 'app'", output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
-            Directory.Delete(sandbox, true);
+            TryDelete(sandbox);
         }
     }
 }
