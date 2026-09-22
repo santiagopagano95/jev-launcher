@@ -2,13 +2,16 @@ param(
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\JevLauncher",
     [switch]$KeepData,
     [switch]$SkipShortcut,
-    [switch]$SkipRegistry
+    [switch]$SkipRegistry,
+    [switch]$SkipProcessKill
 )
 
 $ErrorActionPreference = 'Continue'
 
-Get-Process JevLauncher.App -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 300
+if (-not $SkipProcessKill) {
+    Get-Process JevLauncher.App -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 300
+}
 
 if (-not $SkipRegistry) {
     Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'JevLauncher' -ErrorAction SilentlyContinue

@@ -3,7 +3,8 @@ param(
     [string]$Version = "1.0.0",
     [switch]$SkipShortcut,
     [switch]$SkipRegistry,
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [switch]$SkipProcessKill
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,8 +16,10 @@ if (-not (Test-Path $source)) {
 }
 
 # Cerrar cualquier instancia corriendo.
-Get-Process JevLauncher.App -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 300
+if (-not $SkipProcessKill) {
+    Get-Process JevLauncher.App -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 300
+}
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 Copy-Item (Join-Path $source '*') $InstallDir -Recurse -Force
