@@ -4,15 +4,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'publish.ps1')
+
 $stage = Join-Path $Output 'JevLauncher'
 
 Remove-Item $Output -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app') | Out-Null
 
-dotnet publish (Join-Path $root 'src\JevLauncher.App\JevLauncher.App.csproj') `
-    -c Release -r win-x64 --self-contained false -p:Version=$Version `
-    -o (Join-Path $stage 'app')
+Invoke-JevPublish -Output (Join-Path $stage 'app') -Version $Version
 
 foreach ($file in 'install.ps1', 'uninstall.ps1', 'install.cmd', 'uninstall.cmd', 'README.txt') {
     Copy-Item (Join-Path $PSScriptRoot $file) $stage -Force
