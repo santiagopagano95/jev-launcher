@@ -30,6 +30,9 @@ y usa **Jev (TypeSafe)** para re-rankear los resultados segun la intencion.
 
 ## Instalacion
 
+Para regenerar **ambos** artefactos (ZIP y Setup) desde un unico publish: `.\installer\build-all.ps1`
+(requiere Inno Setup 6). Los scripts de abajo generan cada uno por separado.
+
 ### Instalador (Inno Setup)
 
 `installer\dist\JevLauncher-Setup-<version>.exe` — wizard, sin admin:

@@ -29,3 +29,7 @@ CONFIGURAR LA IA (opcional)
 DESINSTALAR
 - Doble clic en uninstall.cmd, o desde "Aplicaciones instaladas" en Windows.
 - Por defecto borra tambien los datos (%APPDATA%\JevLauncher). Usa -KeepData para conservarlos.
+
+BUILD (desarrolladores)
+- installer\build-all.ps1 publica una vez y genera el ZIP y el Setup de Inno.
+- installer\build.ps1 y installer\build-inno.ps1 generan cada uno por separado.
