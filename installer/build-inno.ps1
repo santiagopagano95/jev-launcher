@@ -4,7 +4,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'publish.ps1')
+
 $payload = Join-Path $PSScriptRoot 'inno-payload'
 
 if (-not (Test-Path $Iscc)) {
@@ -14,9 +15,7 @@ if (-not (Test-Path $Iscc)) {
 Remove-Item $payload -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $payload | Out-Null
 
-dotnet publish (Join-Path $root 'src\JevLauncher.App\JevLauncher.App.csproj') `
-    -c Release -r win-x64 --self-contained false -p:Version=$Version `
-    -o $payload
+Invoke-JevPublish -Output $payload -Version $Version
 
 & $Iscc "/DMyAppVersion=$Version" (Join-Path $PSScriptRoot 'inno\JevLauncher.iss')
 if ($LASTEXITCODE -ne 0) { throw "ISCC fallo con codigo $LASTEXITCODE" }
