@@ -9,3 +9,5 @@ publish/
 installer/dist/
 installer/test/
 installer/inno-payload/
+installer/stage/
+installer/stage-zip/
