@@ -106,6 +106,7 @@ public partial class App : Application
         _updater = new Updater(_settings, _panel.Notify);
         _panel.CheckUpdatesAction = () => _ = _updater.CheckManuallyAsync();
         _updater.StartAutoCheck();
+        _panel.SettingsChanged += _updater.ApplySettings;
 
         if (!suppressHotKey)
         {

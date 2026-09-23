@@ -41,18 +41,19 @@
   <StackPanel Margin="20">
     <TextBlock x:Name="VersionText" FontFamily="{StaticResource UiFont}" FontSize="15"
                Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
-    <TextBlock x:Name="NotesText" FontFamily="{StaticResource MonoFont}" FontSize="11"
-               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
-               MaxHeight="220" Margin="0,0,0,16" />
+    <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
+      <TextBlock x:Name="NotesText" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                 Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
+    </ScrollViewer>
     <TextBlock x:Name="StatusText" FontFamily="{StaticResource MonoFont}" FontSize="11"
                Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
       <Button x:Name="NotesButton" Content="Ver cambios" Style="{StaticResource SecondaryButton}"
               Click="OnNotesClick" Margin="0,0,8,0" />
       <Button x:Name="LaterButton" Content="Más tarde" Style="{StaticResource SecondaryButton}"
-              Click="OnLaterClick" Margin="0,0,8,0" />
+              Click="OnLaterClick" Margin="0,0,8,0" IsCancel="True" />
       <Button x:Name="UpdateButton" Content="Actualizar ahora" Style="{StaticResource PrimaryButton}"
-              Click="OnUpdateClick" />
+              Click="OnUpdateClick" IsDefault="True" />
     </StackPanel>
   </StackPanel>
 </Window>
