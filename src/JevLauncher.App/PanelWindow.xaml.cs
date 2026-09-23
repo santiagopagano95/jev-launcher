@@ -46,6 +46,7 @@ public partial class PanelWindow : Window
     private string _lastError = string.Empty;
 
     public Action? OpenSettingsAction { get; set; }
+    public Action? CheckUpdatesAction { get; set; }
     public event Action? SettingsChanged;
 
     public PanelWindow(Settings settings)
@@ -96,6 +97,7 @@ public partial class PanelWindow : Window
             this,
             Toggle,
             () => OpenSettingsAction?.Invoke(),
+            () => CheckUpdatesAction?.Invoke(),
             () =>
             {
                 _tray?.Dispose();
@@ -460,7 +462,7 @@ public partial class PanelWindow : Window
         _timer.Start();
     }
 
-    private void Notify(string message)
+    public void Notify(string message)
     {
         try
         {

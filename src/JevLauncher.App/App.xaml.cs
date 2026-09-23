@@ -13,6 +13,7 @@ public partial class App : Application
     private PanelWindow? _panel;
     private HotKey? _hotKey;
     private Settings? _settings;
+    private Updater? _updater;
     private Mutex? _singleInstance;
     private EventWaitHandle? _showSignal;
     private EventWaitHandle? _toggleSignal;
@@ -89,7 +90,7 @@ public partial class App : Application
             Dispatcher.InvokeAsync(async () =>
             {
                 var report = await _panel.RunSmokeAsync();
-                var tray = TrayIcon.Attach(_panel!, static () => { }, static () => { }, static () => { });
+                var tray = TrayIcon.Attach(_panel!, static () => { }, static () => { }, static () => { }, static () => { });
                 report += $"tray icon => IsCreated={tray.IsCreated}{Environment.NewLine}";
                 tray.Dispose();
                 Artifacts.Ensure();
@@ -101,6 +102,10 @@ public partial class App : Application
         }
 
         _panel.CreateTrayIcon();
+
+        _updater = new Updater(_settings, _panel.Notify);
+        _panel.CheckUpdatesAction = () => _ = _updater.CheckManuallyAsync();
+        _updater.StartAutoCheck();
 
         if (!suppressHotKey)
         {
