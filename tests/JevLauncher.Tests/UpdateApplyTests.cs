@@ -11,7 +11,7 @@ public class UpdateApplyTests
             @"C:\Program Files\Jev Launcher\JevLauncher.App.exe");
 
         Assert.Equal(
-            "/c \"\"C:\\Users\\John Doe\\JevLauncher-Setup-1.1.0.exe\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART && start \"\" \"C:\\Program Files\\Jev Launcher\\JevLauncher.App.exe\"\"",
+            "/c \"\"C:\\Users\\John Doe\\JevLauncher-Setup-1.1.0.exe\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART ; start \"\" \"C:\\Program Files\\Jev Launcher\\JevLauncher.App.exe\"\"",
             args);
     }
 }
