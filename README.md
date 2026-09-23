@@ -93,6 +93,20 @@ Datos de runtime (redirigibles con `JEV_LAUNCHER_DATA`):
 
 - `usage.json` (ranking), `notes.txt` (notas), `settings.json`.
 
+## Actualizaciones
+
+El launcher chequea **GitHub Releases** ~10 s despues de arrancar y luego cada 6 horas.
+Tambien hay un item **Buscar actualizaciones** en el menu de la bandeja para forzarlo.
+
+Primero **avisa y pregunta**; recien con tu consentimiento descarga el Setup, verifica su
+**SHA256** y lo instala en modo silencioso (la app se cierra y se vuelve a abrir).
+
+El ajuste `CheckForUpdates` (Settings) desactiva el chequeo automatico; el manual sigue
+funcionando igual.
+
+Para publicar una version: subi un tag como `v1.1.0`. **GitHub Actions** compila el ZIP y el
+Setup y crea el release con el `.sha256` incluido.
+
 ## Arquitectura
 
 - **`JevLauncher.Core`** (net10.0-windows, sin UI): indice, fuzzy, prefilter, calculadora,
