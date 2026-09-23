@@ -1,0 +1,58 @@
+<Window x:Class="JevLauncher.App.UpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jev Launcher — Update" Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="{StaticResource PanelSolid}">
+  <Window.Resources>
+    <Style x:Key="PrimaryButton" TargetType="Button">
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+      <Setter Property="Padding" Value="14,6" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="8" Background="{StaticResource AccentGradient}"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SecondaryButton" TargetType="Button">
+      <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+      <Setter Property="Padding" Value="14,6" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="8" Background="#262626" BorderBrush="{StaticResource Hairline}"
+                    BorderThickness="1" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+  <StackPanel Margin="20">
+    <TextBlock x:Name="VersionText" FontFamily="{StaticResource UiFont}" FontSize="15"
+               Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+    <TextBlock x:Name="NotesText" FontFamily="{StaticResource MonoFont}" FontSize="11"
+               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
+               MaxHeight="220" Margin="0,0,0,16" />
+    <TextBlock x:Name="StatusText" FontFamily="{StaticResource MonoFont}" FontSize="11"
+               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" Margin="0,0,0,16" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="NotesButton" Content="Ver cambios" Style="{StaticResource SecondaryButton}"
+              Click="OnNotesClick" Margin="0,0,8,0" />
+      <Button x:Name="LaterButton" Content="Más tarde" Style="{StaticResource SecondaryButton}"
+              Click="OnLaterClick" Margin="0,0,8,0" />
+      <Button x:Name="UpdateButton" Content="Actualizar ahora" Style="{StaticResource PrimaryButton}"
+              Click="OnUpdateClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>
