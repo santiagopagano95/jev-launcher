@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
         SnippetsBox.Text = string.Join(Environment.NewLine,
             settings.Snippets.Select(s => $"{s.Name} = {s.Text}"));
         StartWithWindowsBox.IsChecked = settings.StartWithWindows;
+        CheckForUpdatesBox.IsChecked = settings.CheckForUpdates;
         FoldersBox.Text = string.Join(Environment.NewLine, settings.IndexFolders);
 
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TYPESAFE_API_KEY")))
@@ -50,6 +51,7 @@ public partial class SettingsWindow : Window
             : TemplateBox.Text;
         _settings.Snippets = ParseSnippets(SnippetsBox.Text);
         _settings.StartWithWindows = StartWithWindowsBox.IsChecked == true;
+        _settings.CheckForUpdates = CheckForUpdatesBox.IsChecked == true;
         _settings.IndexFolders = ParseFolders(FoldersBox.Text);
         DialogResult = true;
     }

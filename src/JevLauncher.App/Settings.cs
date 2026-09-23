@@ -16,6 +16,7 @@ public sealed class Settings
     public List<Snippet> Snippets { get; set; } = new();
     public bool StartWithWindows { get; set; } = true;
     public List<string> IndexFolders { get; set; } = new();
+    public bool CheckForUpdates { get; set; } = true;
 
     public static string FilePath => Path.Combine(AppData.Directory, "settings.json");
 
