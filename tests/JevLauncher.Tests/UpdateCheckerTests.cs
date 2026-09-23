@@ -16,6 +16,24 @@ public class UpdateCheckerTests
     }
     """;
 
+    private sealed class FakeHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _f;
+        public FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> f) => _f = f;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+            => Task.FromResult(_f(request));
+    }
+
+    private static UpdateChecker Checker(Func<HttpRequestMessage, HttpResponseMessage> respond)
+        => new(new HttpClient(new FakeHandler(respond)));
+
+    private static HttpResponseMessage Json(string body)
+        => new(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+        };
+
     [Fact]
     public void Parses_tag_version_and_assets()
     {
@@ -37,9 +55,43 @@ public class UpdateCheckerTests
     }
 
     [Fact]
+    public void Returns_null_when_assets_empty()
+    {
+        Assert.Null(UpdateChecker.ParseRelease("""{ "tag_name": "v1.1.0", "assets": [] }"""));
+    }
+
+    [Fact]
+    public void Returns_null_when_multiple_setup_assets()
+    {
+        var json = """
+        {
+          "tag_name": "v1.1.0",
+          "assets": [
+            { "name": "JevLauncher-Setup-1.1.0.exe", "browser_download_url": "https://example/a" },
+            { "name": "JevLauncher-Setup-1.1.0.exe", "browser_download_url": "https://example/b" },
+            { "name": "JevLauncher-Setup-1.1.0.exe.sha256", "browser_download_url": "https://example/sum" }
+          ]
+        }
+        """;
+        Assert.Null(UpdateChecker.ParseRelease(json));
+    }
+
+    [Fact]
     public void Returns_null_on_invalid_json()
     {
         Assert.Null(UpdateChecker.ParseRelease("{ not json"));
+    }
+
+    [Fact]
+    public void Returns_null_on_numeric_tag()
+    {
+        Assert.Null(UpdateChecker.ParseRelease("""{ "tag_name": 123, "assets": [] }"""));
+    }
+
+    [Fact]
+    public void Returns_null_on_non_object_asset()
+    {
+        Assert.Null(UpdateChecker.ParseRelease("""{ "tag_name": "v1.1.0", "assets": [ "oops" ] }"""));
     }
 
     [Theory]
@@ -53,49 +105,39 @@ public class UpdateCheckerTests
         Assert.Equal(expected, version);
     }
 
-    private sealed class FakeHandler : HttpMessageHandler
+    [Fact]
+    public async Task Reports_update_when_newer()
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> _f;
-        public FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> f) => _f = f;
+        var checker = Checker(_ => Json(ReleaseJson));
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-            => Task.FromResult(_f(request));
+        var result = await checker.CheckAsync(new Version(1, 0, 0));
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, result.Status);
+        Assert.Equal(new Version(1, 1, 0), result.Release!.Version);
     }
 
     [Fact]
-    public async Task Returns_release_when_newer()
+    public async Task Reports_up_to_date_when_current_or_newer()
     {
-        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new StringContent(ReleaseJson, System.Text.Encoding.UTF8, "application/json"),
-        });
-        var checker = new UpdateChecker(new HttpClient(handler));
+        var checker = Checker(_ => Json(ReleaseJson));
 
-        var release = await checker.CheckAsync(new Version(1, 0, 0));
-
-        Assert.NotNull(release);
-        Assert.Equal(new Version(1, 1, 0), release!.Version);
+        Assert.Equal(UpdateCheckStatus.UpToDate, (await checker.CheckAsync(new Version(1, 1, 0))).Status);
+        Assert.Equal(UpdateCheckStatus.UpToDate, (await checker.CheckAsync(new Version(2, 0, 0))).Status);
     }
 
     [Fact]
-    public async Task Returns_null_when_current()
+    public async Task Reports_failed_on_http_error()
     {
-        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new StringContent(ReleaseJson, System.Text.Encoding.UTF8, "application/json"),
-        });
-        var checker = new UpdateChecker(new HttpClient(handler));
+        var checker = Checker(_ => new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden));
 
-        Assert.Null(await checker.CheckAsync(new Version(1, 1, 0)));
-        Assert.Null(await checker.CheckAsync(new Version(2, 0, 0)));
+        Assert.Equal(UpdateCheckStatus.Failed, (await checker.CheckAsync(new Version(1, 0, 0))).Status);
     }
 
     [Fact]
-    public async Task Returns_null_on_http_error()
+    public async Task Reports_failed_on_invalid_body()
     {
-        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden));
-        var checker = new UpdateChecker(new HttpClient(handler));
+        var checker = Checker(_ => Json("{ not json"));
 
-        Assert.Null(await checker.CheckAsync(new Version(1, 0, 0)));
+        Assert.Equal(UpdateCheckStatus.Failed, (await checker.CheckAsync(new Version(1, 0, 0))).Status);
     }
 }

@@ -11,6 +11,10 @@ public sealed record ReleaseInfo(
     string HtmlUrl,
     string Notes);
 
+public enum UpdateCheckStatus { UpToDate, UpdateAvailable, Failed }
+
+public sealed record UpdateCheckResult(UpdateCheckStatus Status, ReleaseInfo? Release);
+
 public sealed class UpdateChecker
 {
     public const string LatestReleaseUrl =
@@ -20,7 +24,7 @@ public sealed class UpdateChecker
 
     public UpdateChecker(HttpClient http) => _http = http;
 
-    public async Task<ReleaseInfo?> CheckAsync(Version current, CancellationToken ct = default)
+    public async Task<UpdateCheckResult> CheckAsync(Version current, CancellationToken ct = default)
     {
         try
         {
@@ -29,15 +33,19 @@ public sealed class UpdateChecker
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseContentRead, ct);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode) return new UpdateCheckResult(UpdateCheckStatus.Failed, null);
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var release = ParseRelease(body);
-            return release is not null && release.Version > current ? release : null;
+            if (release is null) return new UpdateCheckResult(UpdateCheckStatus.Failed, null);
+
+            return Normalize(release.Version) > Normalize(current)
+                ? new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, release)
+                : new UpdateCheckResult(UpdateCheckStatus.UpToDate, null);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {
-            return null;
+            return new UpdateCheckResult(UpdateCheckStatus.Failed, null);
         }
     }
 
@@ -47,41 +55,66 @@ public sealed class UpdateChecker
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
 
-            var tag = root.TryGetProperty("tag_name", out var tagElement) ? tagElement.GetString() ?? "" : "";
-            if (!TryParseVersion(tag, out var version)) return null;
+            var tag = ReadString(root, "tag_name");
+            if (tag is null || !TryParseVersion(tag, out var version)) return null;
 
-            var htmlUrl = root.TryGetProperty("html_url", out var html) ? html.GetString() ?? "" : "";
-            var notes = root.TryGetProperty("body", out var body) ? body.GetString() ?? "" : "";
+            var htmlUrl = ReadString(root, "html_url") ?? "";
+            var notes = ReadString(root, "body") ?? "";
+
+            var setupName = $"JevLauncher-Setup-{version}.exe";
+            var checksumName = setupName + ".sha256";
 
             string? setupUrl = null;
             string? checksumUrl = null;
+            var setupCount = 0;
+            var checksumCount = 0;
 
             if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
             {
                 foreach (var asset in assets.EnumerateArray())
                 {
-                    var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                    var url = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() ?? "" : "";
-                    if (name.StartsWith("JevLauncher-Setup-", StringComparison.OrdinalIgnoreCase) &&
-                        name.EndsWith(".exe.sha256", StringComparison.OrdinalIgnoreCase))
+                    if (asset.ValueKind != JsonValueKind.Object) continue;
+
+                    var name = ReadString(asset, "name");
+                    var url = ReadString(asset, "browser_download_url");
+                    if (name is null || url is null) continue;
+
+                    if (string.Equals(name, checksumName, StringComparison.OrdinalIgnoreCase))
+                    {
                         checksumUrl = url;
-                    else if (name.StartsWith("JevLauncher-Setup-", StringComparison.OrdinalIgnoreCase) &&
-                             name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        checksumCount++;
+                    }
+                    else if (string.Equals(name, setupName, StringComparison.OrdinalIgnoreCase))
+                    {
                         setupUrl = url;
+                        setupCount++;
+                    }
                 }
             }
 
-            if (string.IsNullOrEmpty(setupUrl) || string.IsNullOrEmpty(checksumUrl)) return null;
+            if (setupCount != 1 || checksumCount != 1) return null;
 
-            return new ReleaseInfo(tag, version!, setupUrl, checksumUrl, htmlUrl, notes);
+            return new ReleaseInfo(tag, version!, setupUrl!, checksumUrl!, htmlUrl, notes);
         }
-        catch (JsonException)
+        catch (Exception)
         {
             return null;
         }
     }
 
     public static bool TryParseVersion(string tag, out Version? version)
-        => Version.TryParse(tag.TrimStart('v', 'V'), out version);
+    {
+        var trimmed = tag.Length > 0 && (tag[0] == 'v' || tag[0] == 'V') ? tag[1..] : tag;
+        return Version.TryParse(trimmed, out version);
+    }
+
+    private static Version Normalize(Version version)
+        => new(version.Major, version.Minor, Math.Max(version.Build, 0), Math.Max(version.Revision, 0));
+
+    private static string? ReadString(JsonElement element, string property)
+        => element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 }
