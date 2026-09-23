@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install Inno Setup 6
+        run: choco install innosetup --no-progress -y
+      - name: Compute version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v','V')
+          "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Build ZIP and Setup
+        shell: pwsh
+        run: |
+          ./installer/build-all.ps1 -Version "${{ steps.ver.outputs.version }}" `
+            -Iscc "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+      - name: Write checksum
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $setup = "installer/dist/JevLauncher-Setup-$v.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $setup -Leaf)" | Out-File -Encoding ascii "$setup.sha256"
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          gh release create "${{ github.ref_name }}" `
+            "installer/dist/JevLauncher-Setup-$v.exe" `
+            "installer/dist/JevLauncher-Setup-$v.exe.sha256" `
+            "installer/dist/JevLauncher-$v.zip" `
+            --title "${{ github.ref_name }}" --generate-notes
