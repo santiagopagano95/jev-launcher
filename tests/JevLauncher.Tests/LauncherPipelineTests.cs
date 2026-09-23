@@ -18,7 +18,7 @@ public class LauncherPipelineTests
     {
         var index = new List<Candidate>
         {
-            new("f0", CandidateKind.OpenFile, "WhatsApp Image 2026-07-08 at 15.23.32.jpeg", "JPEG", "image 15 2", "x"),
+            new("f0", CandidateKind.OpenFile, "screenshot-2026-07-08.jpeg", "JPEG", "image 15 2", "x"),
             new("t0", CandidateKind.SystemToggle, "Toggle Dark Mode", "System toggle", "dark", "dark-mode"),
         };
 
@@ -33,7 +33,7 @@ public class LauncherPipelineTests
     {
         var index = new List<Candidate>
         {
-            new("d0", CandidateKind.OpenFile, "MR_LOGO_DARK.png", "PNG", "logo dark", "x"),
+            new("d0", CandidateKind.OpenFile, "brand-logo-dark.png", "PNG", "logo dark", "x"),
             new("t0", CandidateKind.SystemToggle, "Toggle Dark Mode", "System toggle", "dark light mode appearance theme", "dark-mode"),
         };
 
