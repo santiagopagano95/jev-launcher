@@ -85,7 +85,7 @@ Detalles: los comandos web **sin argumento abren el sitio** (`/netflix`) y **con
 `%APPDATA%\JevLauncher\settings.json` (las API keys se guardan **cifradas con DPAPI**):
 
 - `EncryptedApiKey` (TypeSafe). El resto son ajustes de UI y comportamiento.
-- `HotKey`, `SearchTemplate`, `Snippets`, `StartWithWindows`, `IndexFolders`.
+- `HotKey`, `SearchTemplate`, `Snippets`, `StartWithWindows`, `IndexFolders`, `CheckForUpdates`.
 
 Tambien se puede usar la variable de entorno `TYPESAFE_API_KEY` (tiene prioridad).
 
