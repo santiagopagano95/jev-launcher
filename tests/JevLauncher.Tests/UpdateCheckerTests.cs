@@ -52,4 +52,50 @@ public class UpdateCheckerTests
         var expected = build < 0 ? new Version(major, minor) : new Version(major, minor, build);
         Assert.Equal(expected, version);
     }
+
+    private sealed class FakeHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _f;
+        public FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> f) => _f = f;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+            => Task.FromResult(_f(request));
+    }
+
+    [Fact]
+    public async Task Returns_release_when_newer()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(ReleaseJson, System.Text.Encoding.UTF8, "application/json"),
+        });
+        var checker = new UpdateChecker(new HttpClient(handler));
+
+        var release = await checker.CheckAsync(new Version(1, 0, 0));
+
+        Assert.NotNull(release);
+        Assert.Equal(new Version(1, 1, 0), release!.Version);
+    }
+
+    [Fact]
+    public async Task Returns_null_when_current()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(ReleaseJson, System.Text.Encoding.UTF8, "application/json"),
+        });
+        var checker = new UpdateChecker(new HttpClient(handler));
+
+        Assert.Null(await checker.CheckAsync(new Version(1, 1, 0)));
+        Assert.Null(await checker.CheckAsync(new Version(2, 0, 0)));
+    }
+
+    [Fact]
+    public async Task Returns_null_on_http_error()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden));
+        var checker = new UpdateChecker(new HttpClient(handler));
+
+        Assert.Null(await checker.CheckAsync(new Version(1, 0, 0)));
+    }
 }
